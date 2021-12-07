@@ -64,7 +64,8 @@ function getTitlesFromLocation()
     return getLocationObject()
     .then(async loc => {
         needsWiki = true;
-        let infos = loc.localityInfo.informative.concat(loc.localityInfo.administrative).sort((firstEl, secondEl) => firstEl.order < secondEl.order ? 1 : -1);
+        let infos = loc.localityInfo.informative.concat(loc.localityInfo.administrative.filter(o => o.adminLevel >= 3))
+                     .sort((firstEl, secondEl) => firstEl.order > secondEl.order ? 1 : -1);
         debug(infos)
 
         let len = Object.keys(infos).length;
