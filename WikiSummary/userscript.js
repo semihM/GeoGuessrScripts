@@ -69,7 +69,6 @@ function getTitlesFromLocation()
         let len = Object.keys(infos).length;
         if (len == 1)
         {
-            console.log("length 1")
             let info = infos[0]
             if (info.order < 3)
             {
@@ -80,7 +79,7 @@ function getTitlesFromLocation()
         }
         else
         {
-            let filtered = infos.filter(o => o.order >= 3 && o.order <= 8);
+            let filtered = infos.filter(o => o.order >= 3);
             filtered.forEach(obj => obj.description == "postal code" ? setNameToPostal(obj, loc.city == "" ? loc.principalSubdivision : loc.city) : null);
 
             if (filtered.length == 0)
@@ -155,21 +154,7 @@ function getFactFromTitles(titles)
 
             let reduced = fact.extract;
             reduced = reduced.trimEnd("\n")
-            while (reduced.endsWith("refer to:"))
-            {
-                delete pages[k]
-
-                keys = Object.keys(pages);
-                k = keys[Math.floor(Math.random() * keys.length)];
-
-                fact = pages[k];
-                if (fact == null) return null
-
-                reduced = fact.extract;
-                if (reduced == null) return null
-
-                reduced = reduced.trimEnd("\n")
-            }
+            if (reduced.endsWith("refer to:")) return
 
             if (reduced.length > MaximumFactMessageLength)
             {
