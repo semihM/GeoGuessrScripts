@@ -12,7 +12,7 @@
 
 let API_Key = 'ENTER_API_KEY_HERE'; //Replace ENTER_API_KEY_HERE with your API Key (so keep the quote marks)
 let MaximumFactMessageLength = 420; // Messages can exceed this limit in version 0.1
-let MaximumFactsCountToDisplay = 3; // Maximum amount of facts to display
+let MaximumFactsCountToDisplay = 5; // Maximum amount of facts to display
 
 let API_URL = "https://api.bigdatacloud.net/data/reverse-geocode?localityLanguage=en&"
 let WIKI_URL = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&origin=*&titles="
@@ -64,8 +64,8 @@ function getTitlesFromLocation()
     return getLocationObject()
     .then(async loc => {
         needsWiki = true;
-        let infos = loc.localityInfo.informative;
-        debug(loc)
+        let infos = loc.localityInfo.informative.concat(loc.localityInfo.administrative).sort((firstEl, secondEl) => firstEl.order < secondEl.order ? 1 : -1);
+        debug(infos)
 
         let len = Object.keys(infos).length;
         if (len == 1)
@@ -98,16 +98,23 @@ function getTitlesFromLocation()
                 }
             }
 
-            let red = await filtered.reduce((prev, curr) =>
-                                      getEnTitle(curr.wikidataId)
-                                      .then(out =>
-                                            "error" in out || !("enwiki" in out.entities[curr.wikidataId].sitelinks)
-                                            ? ""
-                                            : encodeURIComponent(out.entities[curr.wikidataId].sitelinks.enwiki.title) + "|" + prev), "")
-            .then(res => res.slice(0, res.length - 1));
-            debug(red)
+            let red = ""
+            let i = 0;
+            while (i < filtered.length)
+            {
+                let curr = filtered[i];
+                let t = await fetch(WIKIDATA_URL + curr.wikidataId)
+                    .then(res => res.json())
+                    .then(out =>
+                          "error" in out || !("enwiki" in out.entities[curr.wikidataId].sitelinks)
+                          ? ""
+                          : (encodeURIComponent(out.entities[curr.wikidataId].sitelinks.enwiki.title) + "|"))
 
-            return red
+                red = t + red;
+                i++;
+            }
+
+            return red.length > 0 ? red.slice(0, red.length - 1) : red
         }
     })
 
@@ -115,8 +122,7 @@ function getTitlesFromLocation()
 
 function getEnTitle(id)
 {
-    return fetch(WIKIDATA_URL + id)
-    .then(res => res.json())
+    return
 }
 
 function getLocationObject()
@@ -204,6 +210,7 @@ function SetDisplayFact()
 {
     getTitlesFromLocation()
         .then(titles => {
+        debug(titles)
         if (needsWiki)
         {
             getFactFromTitles(titles).then(facts => {
@@ -238,7 +245,7 @@ function setFactInnerHtml()
 {
     let str = facts
     .map((fact,i) => {
-         return `<br><h2 style="color: orange">Fact ${i+1}</h2>(<u><a href="${fact.link}"; style="color: white"><i>source</i></a></u>)<br>${fact.text.split(". ").reduce((prev, curr) => prev + "<br>" + curr)}`
+         return `<br><h2 style="color: orange">Fact ${i+1}</h2>(<u><a href="${fact.link}"; style="color: white"><i>source</i></a></u>)<br><div style="text-align: justify;text-justify: inter-word;">${fact.text.split(". ").reduce((prev, curr) => prev + "<br>" + curr)}</div>`
         })
     .join("<hr>")
 
@@ -249,7 +256,7 @@ function factAttempt1(newDiv1) {
     if(document.getElementById("location-fact") == null && document.getElementsByClassName("round-result_distanceDescription__13lR1").length == 1 && location.pathname.startsWith("/game/")) {
         newDiv1 = document.createElement("div")
         document.getElementsByClassName("round-result_distanceDescription__13lR1")[0].appendChild(newDiv1);
-        newDiv1.innerHTML = `<div id="location-fact" style="text-align:center">nothing interesting...</div>`;
+        newDiv1.innerHTML = `<div id="location-fact" style="text-align:center">Loading wikipedia summaries...</div>`;
     };
 };
 
