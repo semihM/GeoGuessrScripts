@@ -11,7 +11,7 @@
 // ==/UserScript==
 
 let API_Key = 'ENTER_API_KEY_HERE'; //Replace ENTER_API_KEY_HERE with your API Key (so keep the quote marks)
-let MaximumFactMessageLength = 420; // Maximum message length. Messages can exceed this limit in version 0.1 if last sentence is too long
+let MaximumFactMessageLength = 420; // Messages can exceed this limit in version 0.1
 
 let API_URL = "https://api.bigdatacloud.net/data/reverse-geocode?localityLanguage=en&"
 let WIKI_URL = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&origin=*&titles="
@@ -28,6 +28,15 @@ if(sessionStorage.getItem("FactLocationChecked") == null) {
     checked = 0;
 };
 
+function cleanPages(pages)
+{
+    let exclude = [-2, -1,// Missing or invalid
+                   83759,// USA
+                   13530298,// UK
+                  ]
+    exclude.forEach(idx => idx in pages ? delete pages[idx] : null);
+}
+
 function setNameToPostal(obj, name)
 {
     obj.name = name
@@ -42,7 +51,6 @@ function getTitlesFromLocation()
         let infos = loc.localityInfo.informative;
 
         let len = Object.keys(infos).length;
-
         if (len == 1)
         {
             let info = infos[0]
@@ -116,14 +124,12 @@ function getFactFromTitles(titles)
         .then(result =>{
 
         let pages = result.query.pages;
-
-        if (-1 in pages) delete pages[-1]
-        if (-2 in pages) delete pages[-2]
+        cleanPages(pages);
 
         let keys = Object.keys(pages);
         if (keys.length == 0) return null
 
-        let k = keys[keys.length - 1];
+        let k = keys[Math.floor(Math.random() * keys.length)];
         let fact = pages[k];
         if (fact == null) return null
 
@@ -133,7 +139,7 @@ function getFactFromTitles(titles)
             delete pages[k]
 
             keys = Object.keys(pages);
-            k = keys[keys.length - 1];
+            k = keys[Math.floor(Math.random() * keys.length)];
 
             fact = pages[k];
             if (fact == null) return null
@@ -201,7 +207,7 @@ function getLastFactLinkHtml()
 function getLastFactInnerHtml()
 {
     let text = last_fact.text.split(". ").reduce((prev, curr) => prev + "<br>" + curr);
-    return `<br><i><h2>Fact</h2></i>${text}`;
+    return `<br><u><i><h2>Fact</h2></i></u>${text}`;
 }
 
 function factAttempt1(newDiv1) {
