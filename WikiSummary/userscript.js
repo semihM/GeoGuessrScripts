@@ -16,6 +16,7 @@ let MaximumFactsCountToDisplay = 3; // Maximum amount of facts to display
 
 let API_URL = "https://api.bigdatacloud.net/data/reverse-geocode?localityLanguage=en&"
 let WIKI_URL = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&origin=*&titles="
+let WIKIDATA_URL = "https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=sitelinks&sitefilter=enwiki&ids="
 
 let checked = parseInt(sessionStorage.getItem("FactLocationChecked"), 10);
 let facts = []
@@ -61,10 +62,10 @@ function styleFact(name,desc)
 function getTitlesFromLocation()
 {
     return getLocationObject()
-    .then(loc => {
+    .then(async loc => {
         needsWiki = true;
         let infos = loc.localityInfo.informative;
-        debug(infos)
+        debug(loc)
 
         let len = Object.keys(infos).length;
         if (len == 1)
@@ -79,7 +80,7 @@ function getTitlesFromLocation()
         }
         else
         {
-            let filtered = infos.filter(o => o.order >= 3);
+            let filtered = infos.filter(o => o.order >= 3 && "wikidataId" in o);
             filtered.forEach(obj => obj.description == "postal code" ? setNameToPostal(obj, loc.city == "" ? loc.principalSubdivision : loc.city) : null);
 
             if (filtered.length == 0)
@@ -97,12 +98,25 @@ function getTitlesFromLocation()
                 }
             }
 
-            let red = filtered.reduce((prev, curr) => curr.name.replace(" ", "%20") + "|" + prev, "");
-            red = red.slice(0, red.length - 1)
+            let red = await filtered.reduce((prev, curr) =>
+                                      getEnTitle(curr.wikidataId)
+                                      .then(out =>
+                                            "error" in out || !("enwiki" in out.entities[curr.wikidataId].sitelinks)
+                                            ? ""
+                                            : encodeURIComponent(out.entities[curr.wikidataId].sitelinks.enwiki.title) + "|" + prev), "")
+            .then(res => res.slice(0, res.length - 1));
+            debug(red)
+
             return red
         }
     })
 
+}
+
+function getEnTitle(id)
+{
+    return fetch(WIKIDATA_URL + id)
+    .then(res => res.json())
 }
 
 function getLocationObject()
@@ -147,10 +161,10 @@ function getFactFromTitles(titles)
 
         keys.forEach(k =>
         {
-            if (facts.length >= MaximumFactsCountToDisplay) return null
+            if (facts.length >= MaximumFactsCountToDisplay) return
 
             let fact = pages[k];
-            if (fact == null) return null
+            if (fact == null) return
 
             let reduced = fact.extract;
             reduced = reduced.trimEnd("\n")
@@ -202,6 +216,7 @@ function SetDisplayFact()
                         }
                     ]
                 }
+                debug(facts)
                 setFactInnerHtml();
             })
         }
