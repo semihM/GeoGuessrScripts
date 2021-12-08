@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Wiki Summary
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.2
-// @description  Display Wikipedia summary of the Geoguessr locations
+// @version      0.3
+// @description  Display Wikipedia summary of the Geoguessr locations. Works with both streaks and 5 round games.
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js
@@ -332,7 +332,13 @@ function factAttempt1(newDiv1) {
     if(document.getElementById("location-fact") == null && document.getElementsByClassName("round-result_distanceDescription__13lR1").length == 1 && location.pathname.startsWith("/game/")) {
         newDiv1 = document.createElement("div")
         document.getElementsByClassName("round-result_distanceDescription__13lR1")[0].appendChild(newDiv1);
-        newDiv1.innerHTML = `<div id="location-fact" style="text-align:center">Loading wikipedia summaries...</div>`;
+        newDiv1.innerHTML = `<div id="location-fact" style="text-align:center">Loading wikipedia summaries...</div><br>`;
+    }
+    // Streaks
+    else if(document.getElementById("location-fact") == null && document.getElementsByClassName("streak-round-result_root__1QCM0").length == 1 && location.pathname.startsWith("/game/")) {
+        newDiv1 = document.createElement("div")
+        document.getElementsByClassName("streak-round-result_root__1QCM0")[0].insertBefore(newDiv1,document.getElementsByClassName("streak-round-result_root__1QCM0")[0].lastElementChild);
+        newDiv1.innerHTML = `<div id="location-fact" style="text-align:center">Loading wikipedia summaries...</div><br>`;
     };
 };
 
