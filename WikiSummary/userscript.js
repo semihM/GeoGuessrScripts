@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wiki Summary
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.1
+// @version      0.2
 // @description  Display Wikipedia summary of the Geoguessr locations
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts
@@ -10,13 +10,37 @@
 // @grant        GM_addStyle
 // ==/UserScript==
 
-let API_Key = 'ENTER_API_KEY_HERE'; //Replace ENTER_API_KEY_HERE with your API Key (so keep the quote marks)
-let MaximumFactMessageLength = 420; // Messages can exceed this limit in version 0.1
-let MaximumFactsCountToDisplay = 5; // Maximum amount of facts to display
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// API KEYS
+// - https://www.bigdatacloud.com/
+// - https://opentripmap.io/
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// BigDataCloud for location information
+let BigDataCloud_APIKEY = 'ENTER_API_KEY_HERE'; //Replace ENTER_API_KEY_HERE with yours from https://www.bigdatacloud.com/
+// OpenTripMap for places nearby
+let OpenTripMap_APIKEY = 'ENTER_API_KEY_HERE'; //Replace ENTER_API_KEY_HERE with yours from https://opentripmap.io/
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// SETTINGS
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+let MaximumFactMessageLength = 420; // Messages can exceed this limit if last sentence is too long
+
+let MaximumFactCountToDisplay = 7; // Maximum amount of facts(geographical + famous place) to display
+let MaximumPlaceFactCountToDisplay = 3; // Maximum amount of famous place facts to display
+
+let PlaceCategoriesToSearchFor = "historic,cultural"; // Categories for nearby places, check https://opentripmap.io/catalog for other categories. Seperate categories with ',' commas
+let PlaceSearchRadiusInMeters = 250 // Radius in meters to search for places nearby
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 let API_URL = "https://api.bigdatacloud.net/data/reverse-geocode?localityLanguage=en&"
 let WIKI_URL = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&origin=*&titles="
 let WIKIDATA_URL = "https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=sitelinks&sitefilter=enwiki&ids="
+let OPENTRIP_URL = `https://api.opentripmap.com/0.1/en/places/radius?radius=${PlaceSearchRadiusInMeters}&limit=${MaximumPlaceFactCountToDisplay}&src_attr=wikidata&kinds=${encodeURIComponent(PlaceCategoriesToSearchFor)}&apikey=`
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 let checked = parseInt(sessionStorage.getItem("FactLocationChecked"), 10);
 let facts = []
@@ -63,67 +87,102 @@ function getTitlesFromLocation()
 {
     return getLocationObject()
     .then(async loc => {
+        debug(loc)
+
         needsWiki = true;
+        placeWikidataTitles = [];
+
         let infos = loc.localityInfo.informative.concat(loc.localityInfo.administrative.filter(o => o.adminLevel >= 3))
-                     .sort((firstEl, secondEl) => firstEl.order > secondEl.order ? 1 : -1);
+
+        debug("infos")
         debug(infos)
 
-        let len = Object.keys(infos).length;
-        if (len == 1)
-        {
-            let info = infos[0]
-            if (info.order < 3)
-            {
-                needsWiki = false;
-                return styleFact(info.name, info.description)
-            }
-            return info;
-        }
-        else
-        {
-            let filtered = infos.filter(o => o.order >= 3 && "wikidataId" in o);
-            filtered.forEach(obj => obj.description == "postal code" ? setNameToPostal(obj, loc.city == "" ? loc.principalSubdivision : loc.city) : null);
+        return await getNearByLocationsFromLatLng(loc.latitude, loc.longitude)
+        .then(locs => {
+            debug("locs")
+            debug(locs)
+            return locs.features.map(place =>
+                "wikidata" in place.properties ?
+                 {
+                     "order" : 8,
+                     "name" : place.properties.name,
+                     "description" : place.properties.name + "(" + place.properties.kinds + ")",
+                     "wikidataId" : place.properties.wikidata,
+                     "isPlaceFact" : true
+                 }
+                 : null).filter(o => o != null)
+        })
+        .then(async places => {
 
-            if (filtered.length == 0)
+            debug("places")
+            debug(places)
+
+            infos = infos.concat(places)
+                .sort((firstEl, secondEl) => firstEl.order > secondEl.order ? 1 : -1);
+
+            debug("infos")
+            debug(infos)
+
+            let len = Object.keys(infos).length;
+            if (len == 1)
             {
-                if (infos.length >= 1)
+                let info = infos[0]
+                if (info.order < 3)
                 {
                     needsWiki = false;
-                    facts = infos.map(obj => { return {"text": styleFact(obj.name, obj.description), "link": INVALIDLINK} })
-                    return null;
+                    return styleFact(info.name, info.description)
                 }
-                else
-                {
-                    needsWiki = false;
-                    return "nothing interesting...";
-                }
+                return info;
             }
-
-            let red = ""
-            let i = 0;
-            while (i < filtered.length)
+            else
             {
-                let curr = filtered[i];
-                let t = await fetch(WIKIDATA_URL + curr.wikidataId)
+                let filtered = infos.filter(o => o.order >= 3 && "wikidataId" in o);
+                filtered.forEach(obj => obj.description == "postal code" ? setNameToPostal(obj, loc.city == "" ? loc.principalSubdivision : loc.city) : null);
+
+                if (filtered.length == 0)
+                {
+                    if (infos.length >= 1)
+                    {
+                        needsWiki = false;
+                        facts = infos.map(obj => { return {"text": styleFact(obj.name, obj.description), "link": INVALIDLINK, "isGeoFact": true} })
+                        return null;
+                    }
+                    else
+                    {
+                        needsWiki = false;
+                        return "nothing interesting...";
+                    }
+                }
+
+                let red = ""
+                let i = 0;
+                while (i < filtered.length)
+                {
+                    let curr = filtered[i];
+                    let t = await fetch(WIKIDATA_URL + curr.wikidataId)
                     .then(res => res.json())
                     .then(out =>
                           "error" in out || !("enwiki" in out.entities[curr.wikidataId].sitelinks)
                           ? ""
-                          : (encodeURIComponent(out.entities[curr.wikidataId].sitelinks.enwiki.title) + "|"))
+                          : (processAndGetWikidataTitle(out, curr) + "|"))
 
-                red = t + red;
-                i++;
+                    red = t + red;
+                    i++;
+                }
+
+                return red.length > 0 ? red.slice(0, red.length - 1) : red
             }
-
-            return red.length > 0 ? red.slice(0, red.length - 1) : red
-        }
+        })
     })
-
 }
 
-function getEnTitle(id)
+let placeWikidataTitles = []
+
+function processAndGetWikidataTitle(data, obj)
 {
-    return
+    if ("isPlaceFact" in obj) placeWikidataTitles.push(data.entities[obj.wikidataId].sitelinks.enwiki.title)
+
+    return encodeURIComponent(data.entities[obj.wikidataId].sitelinks.enwiki.title)
 }
 
 function getLocationObject()
@@ -143,9 +202,17 @@ function getLocationObject()
     })
 }
 
+function getNearByLocationsFromLatLng(lat, lng)
+{
+    let api = OPENTRIP_URL + OpenTripMap_APIKEY + "&lat="+lat+"&lon="+lng
+    debug(api)
+    return fetch(api)
+        .then(res => res.json())
+}
+
 function getLocationFromLatLng(lat, lng)
 {
-    let api = API_URL + "latitude="+lat+"&longitude="+lng+"&key="+API_Key
+    let api = API_URL + "latitude="+lat+"&longitude="+lng+"&key="+BigDataCloud_APIKEY
     return fetch(api)
         .then(res => res.json())
 }
@@ -168,7 +235,7 @@ function getFactFromTitles(titles)
 
         keys.forEach(k =>
         {
-            if (facts.length >= MaximumFactsCountToDisplay) return
+            if (facts.length >= MaximumFactCountToDisplay) return
 
             let fact = pages[k];
             if (fact == null) return
@@ -195,7 +262,8 @@ function getFactFromTitles(titles)
 
             let f = {
                 "text": styleFact(fact.title, reduced),
-                "link": "https://en.wikipedia.org/?curid=" + fact.pageid
+                "link": "https://en.wikipedia.org/?curid=" + fact.pageid,
+                "isGeoFact": placeWikidataTitles.indexOf(fact.title) == -1
             }
             debug(f)
             facts.push(f)
@@ -220,7 +288,8 @@ function SetDisplayFact()
                     facts = [
                         {
                             "text": styleFact(titles.name, titles.description),
-                            "link": INVALIDLINK
+                            "link": INVALIDLINK,
+                            "isGeoFact": true
                         }
                     ]
                 }
@@ -234,7 +303,8 @@ function SetDisplayFact()
             facts = [
                         {
                             "text": titles,
-                            "link": INVALIDLINK
+                            "link": INVALIDLINK,
+                            "isGeoFact": true
                         }
             ]
             setFactInnerHtml();
@@ -246,7 +316,7 @@ function setFactInnerHtml()
 {
     let str = facts
     .map((fact,i) => {
-         return `<br><h2 style="color: orange">Fact ${i+1}</h2>(<u><a href="${fact.link}"; style="color: white"><i>source</i></a></u>)<br><div style="text-align: justify;text-justify: inter-word;">${fact.text.split(". ").reduce((prev, curr) => prev + "<br>" + curr)}</div>`
+         return `<br><h2 style="color: ${(fact.isGeoFact ? "orange" : "cyan")}">${(fact.isGeoFact ? "Geographical" : "Famous Place")} Fact ${i+1}</h2>(<u><a href="${fact.link}"; style="color: white"><i>source</i></a></u>)<br><div style="text-align: justify;text-justify: inter-word;">${fact.text.split(". ").reduce((prev, curr) => prev + "<br>" + curr)}</div>`
         })
     .join("<hr>")
 
