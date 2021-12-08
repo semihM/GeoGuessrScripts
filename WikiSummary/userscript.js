@@ -31,7 +31,7 @@ let MaximumFactCountToDisplay = 7; // Maximum amount of facts(geographical + fam
 let MaximumPlaceFactCountToDisplay = 3; // Maximum amount of famous place facts to display
 
 let PlaceCategoriesToSearchFor = "historic,cultural,natural,architecture"; // Categories for nearby places, check https://opentripmap.io/catalog for other categories. Seperate categories with ',' commas
-let PlaceSearchRadiusInMeters = 250 // Radius in meters to search for places nearby
+let PlaceSearchRadiusInMeters = 750 // Radius in meters to search for places nearby
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
