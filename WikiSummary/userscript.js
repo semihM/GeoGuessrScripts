@@ -30,7 +30,7 @@ let MaximumFactMessageLength = 420; // Messages can exceed this limit if last se
 let MaximumFactCountToDisplay = 7; // Maximum amount of facts(geographical + famous place) to display
 let MaximumPlaceFactCountToDisplay = 3; // Maximum amount of famous place facts to display
 
-let PlaceCategoriesToSearchFor = "historic,cultural"; // Categories for nearby places, check https://opentripmap.io/catalog for other categories. Seperate categories with ',' commas
+let PlaceCategoriesToSearchFor = "historic,cultural,natural,architecture"; // Categories for nearby places, check https://opentripmap.io/catalog for other categories. Seperate categories with ',' commas
 let PlaceSearchRadiusInMeters = 250 // Radius in meters to search for places nearby
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,6 +93,11 @@ function getTitlesFromLocation()
         placeWikidataTitles = [];
 
         let infos = loc.localityInfo.informative.concat(loc.localityInfo.administrative.filter(o => o.adminLevel >= 3))
+                .sort((firstEl, secondEl) => firstEl.order > secondEl.order ? 1 : -1)
+
+        if (infos.length == 0) return null
+
+        let maxorder = infos[infos.length - 1].order
 
         debug("infos")
         debug(infos)
@@ -104,7 +109,7 @@ function getTitlesFromLocation()
             return locs.features.map(place =>
                 "wikidata" in place.properties ?
                  {
-                     "order" : 8,
+                     "order" : Math.floor(maxorder + (Math.random() * maxorder) / 2.0),
                      "name" : place.properties.name,
                      "description" : place.properties.name + "(" + place.properties.kinds + ")",
                      "wikidataId" : place.properties.wikidata,
