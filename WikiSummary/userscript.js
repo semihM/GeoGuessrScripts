@@ -4,7 +4,7 @@
 // @version      0.3.1
 // @description  Display Wikipedia summary of the Geoguessr locations. Works with both streaks and 5 round games.
 // @author       semihM (aka rhinoooo_)
-// @source       https://github.com/semihM/GeoGuessrScripts
+// @source       https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/WikiSummary/userscript.js
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @grant        GM_addStyle
@@ -27,11 +27,11 @@ let OpenTripMap_APIKEY = 'ENTER_API_KEY_HERE'; //Replace ENTER_API_KEY_HERE with
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 let MaximumFactMessageLength = 420; // Messages can exceed this limit if last sentence is too long
 
-let MaximumFactCountToDisplay = 7; // Maximum amount of facts(geographical + famous place) to display
-let MaximumPlaceFactCountToDisplay = 3; // Maximum amount of famous place facts to display
+let MaximumFactCountToDisplay = 8; // Maximum amount of facts(geographical + famous place) to display
+let MaximumPlaceFactCountToDisplay = 4; // Maximum amount of famous place facts to display
 
 let PlaceCategoriesToSearchFor = "historic,cultural,natural,architecture"; // Categories for nearby places, check https://opentripmap.io/catalog for other categories. Seperate categories with ',' commas
-let PlaceSearchRadiusInMeters = 750 // Radius in meters to search for places nearby
+let PlaceSearchRadiusInMeters = 1000 // Radius in meters to search for places nearby
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -142,11 +142,14 @@ function getTitlesFromLocation()
             else
             {
                 let filtered = infos.filter(o => o.order >= 3 && "wikidataId" in o);
+
                 if (filtered.length < MaximumFactCountToDisplay)
                 {
                     filtered = infos.filter(o => o.order >= 2 && "wikidataId" in o);
                 }
+
                 filtered.forEach(obj => obj.description == "postal code" ? setNameToPostal(obj, loc.city == "" ? loc.principalSubdivision : loc.city) : null);
+                debug(filtered)
 
                 if (filtered.length == 0)
                 {
@@ -174,7 +177,6 @@ function getTitlesFromLocation()
                           "error" in out || !("enwiki" in out.entities[curr.wikidataId].sitelinks)
                           ? ""
                           : (processAndGetWikidataTitle(out, curr) + "|"))
-                    debug(t)
 
                     red = t + red;
                     i++;
