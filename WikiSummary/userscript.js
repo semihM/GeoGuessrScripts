@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         Wiki Summary
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.4.0
+// @version      0.4.1
 // @description  Display Wikipedia summary of the Geoguessr locations. Works with both streaks and 5 round games.
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/WikiSummary
 // @supportURL   https://github.com/semihM/GeoGuessrScripts/issues
-// @downloadURL  https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/WikiSummary/userscript.js
 // @updateURL    https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/WikiSummary/userscript.js
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
@@ -18,6 +17,10 @@
 // API KEYS : Get your keys from following sites
 // - https://www.bigdatacloud.com/
 // - https://opentripmap.io/
+//
+// After every update, these values will be reset. But since the script stores them as "cookies", they will still be replaced internally
+// API Keys are not required to be updated in here after they get removed because of an auto-update
+//
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // BigDataCloud for location information
@@ -27,37 +30,58 @@ let BigDataCloud_APIKEY = 'ENTER_API_KEY_HERE'; //Replace ENTER_API_KEY_HERE wit
 let OpenTripMap_APIKEY = 'ENTER_API_KEY_HERE'; //Replace ENTER_API_KEY_HERE with yours from https://opentripmap.io/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// SETTINGS: Right hand side values can be updated if desired
+// SETTINGS: Make sure UseSettingsBelow_InsteadOfCookies is set to true to use settings written here instead of previous one in cookies
+
+// After every update, settings will be reset. But since the script stores them as "cookies", they will still be replaced internally
+// There will be alerts prompted in the site after updates, make sure you read them!
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const MaximumFactMessageLength = 420; // Maximum fact text length, may exceed the limit if last sentence is long enough
+let Settings =
+    {
+        // Maximum fact text length, may exceed the limit if last sentence is long enough
+        "MaximumFactMessageLength": 420,
 
-const MaximumPlaceFactCountToDisplay = 4; // Maximum amount of famous place facts to display
-const MaximumFactCountToDisplay = 12; // Maximum amount of facts(geographical + famous place) to display
+        // Maximum amount of famous place facts to display
+        "MaximumPlaceFactCountToDisplay": 5,
+        // Maximum amount of facts(geographical + famous place) to display
+        "MaximumFactCountToDisplay": 10,
 
-const PlaceCategoriesToSearchFor = "historic,cultural,natural,architecture"; // Categories for nearby places, check https://opentripmap.io/catalog for other categories. Seperate categories with ',' commas
-const PlaceSearchRadiusInMeters = 1000 // Radius in meters to search for places nearby
+        // Categories for nearby places, check https://opentripmap.io/catalog for other categories. Seperate categories with ',' commas
+        "PlaceCategoriesToSearchFor": "historic,cultural,natural,architecture",
+        // Radius in meters to search for places nearby
+        "PlaceSearchRadiusInMeters": 1000,
 
-const DisplayFactsBelowButtons = false // true: Display facts under the main green continue button; false: Display facts before continue button
+        // true: Display facts under the main green continue button; false: Display facts before continue button
+        "DisplayFactsBelowButtons": true,
 
-const FactWikiTitleColor = "lime" // Fact's wiki title color for both geographical and famous place facts
-const FactWikiTextColor = "white" // Fact's wiki text color for both geographical and famous place facts
+        // Fact's wiki title color for both geographical and famous place facts
+        "FactWikiTitleColor": "lime",
+        // Fact's wiki text color for both geographical and famous place facts
+        "FactWikiTextColor": "white",
 
-const GeographyFactTitle = "Geographical" // Geographical fact title
-const GeographyFactTitleColorName = "orange" // Geographical fact title color name, lowercase
+        // Geographical fact title
+        "GeographyFactTitle": "Geographical",
+        // Geographical fact title color name, lowercase
+        "GeographyFactTitleColorName": "orange",
 
-const FamousPlaceFactTitle = "Famous Place" // Famous place fact title
-const FamousPlaceFactTitleColorName = "cyan" // Famous place fact text color name, lowercase
+        // Famous place fact title
+        "FamousPlaceFactTitle": "Famous Place",
+        // Famous place fact text color name, lowercase
+        "FamousPlaceFactTitleColorName": "cyan",
 
-const DisplayFactNumber = true // true: Display fact number after the title; false: Don't display fact number
+        // true: Display fact number after the title; false: Don't display fact number
+        "DisplayFactNumber": true,
 
-const ExcludedWikiPageIds =
-      [
-          // Remove the first '//' before the wiki ids ( //12345, -> 12345, ) to exclude the wiki page from results
-          // Add more by adding a ',' comma after the previous wiki id
-          //83759, // USA
-          //13530298, // UK
-      ]
+        // Exclude given wiki id's from facts
+        "ExcludedWikiPageIds":
+        [
+            // Remove the first '//' before the wiki ids ( //12345, -> 12345, ) to exclude the wiki page from results
+            // Add more by adding a ',' comma after the previous wiki id
+            //83759, // USA
+            //13530298, // UK
+        ]
+    }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -68,14 +92,18 @@ const DEBUG_ENABLED = false // true: Console print enabled for debugging; false:
 const API_URL = "https://api.bigdatacloud.net/data/reverse-geocode?localityLanguage=en&"
 const WIKI_URL = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&origin=*&titles="
 const WIKIDATA_URL = "https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=sitelinks&sitefilter=enwiki&ids="
-const OPENTRIP_URL = `https://api.opentripmap.com/0.1/en/places/radius?radius=${PlaceSearchRadiusInMeters}&limit=${MaximumPlaceFactCountToDisplay}&src_attr=wikidata&kinds=${encodeURIComponent(PlaceCategoriesToSearchFor)}&apikey=`
+const OPENTRIP_URL = `https://api.opentripmap.com/0.1/en/places/radius?radius=${Settings.PlaceSearchRadiusInMeters}&limit=${Settings.MaximumPlaceFactCountToDisplay}&src_attr=wikidata&kinds=${encodeURIComponent(Settings.PlaceCategoriesToSearchFor)}&apikey=`
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const SettingsVersion = 1; // DO NOT CHANGE MANUALLY
 
 const EMPTYAPIKEY = "ENTER_API_KEY_HERE"
 const INVALIDLINK = "#";
 const BIGDATACLOUD_APICOOKIE = "geoguessr_script_semihM_bigdatacloudkey"
 const OPENTRIPMAP_APICOOKIE = "geoguessr_script_semihMopentripmapkey"
+const SETTINGS_COOKIE = "geoguessr_script_semihM_WikiSummarySettings"
+const SETTINGS_ASKED_COOKIE = "geoguessr_script_semihM_WikiSummarySettingsAsked"
 
 const _class_roundResult_5roundGame = "round-result_actions__27yr5"
 const _class_roundResult_streakGame = "streak-round-result_root__1QCM0"
@@ -95,7 +123,12 @@ if(sessionStorage.getItem("FactLocationChecked") == null) {
     checked = 0;
 };
 
+/////////////////////////
+// Cookies
+/////////////////////////
 CheckCookiesForAPIKeys()
+CheckCookiesForSettings()
+/////////////////////////
 
 function debug(obj)
 {
@@ -123,6 +156,11 @@ function getCookie(name) {
     return null;
 }
 
+function GetSettingsString()
+{
+     return JSON.stringify(Settings)
+}
+
 function CheckCookiesForAPIKeys()
 {
     let key = ""
@@ -143,13 +181,60 @@ function CheckCookiesForAPIKeys()
     else setCookie(OPENTRIPMAP_APICOOKIE, OpenTripMap_APIKEY, CookieDays)
 }
 
+function CheckCookiesForSettings()
+{
+    let settings = getCookie(SETTINGS_COOKIE)
+    let asked = getCookie(SETTINGS_ASKED_COOKIE);
+
+    if (settings == null || asked == null) // First time
+    {
+        setCookie(SETTINGS_COOKIE, JSON.stringify(Settings), CookieDays)
+        setCookie(SETTINGS_ASKED_COOKIE, SettingsVersion, CookieDays)
+    }
+    else
+    {
+        let cookieSettings = JSON.parse(settings)
+        if (asked != SettingsVersion) // There was an update
+        {
+            let restore = window.confirm("There was an update to WikiSummary(by rhino). Would you like to restore the old settings ?");
+
+            setCookie(SETTINGS_ASKED_COOKIE, SettingsVersion, CookieDays)
+
+            if (restore)
+            {
+                for (const [key, value] of Object.entries(Settings))
+                {
+                    if (!(key in cookieSettings))
+                    {
+                        cookieSettings[key] = value
+                    }
+                }
+
+                let cookiesets = JSON.stringify(cookieSettings)
+                setCookie(SETTINGS_COOKIE, cookiesets, CookieDays) // Use from cookies
+                prompt("Copy the following and replace your current settings in the script source code!", cookiesets)
+                while (!window.confirm("Current settings written in the script will override old settings. Have you updated and saved the settings part in the script?"))
+                {}
+            }
+            else
+            {
+                setCookie(SETTINGS_COOKIE, JSON.stringify(Settings), CookieDays) // Store new update's settings
+            }
+        }
+        else
+        {
+            setCookie(SETTINGS_COOKIE, JSON.stringify(Settings), CookieDays) // Store currently written settings
+        }
+    }
+}
+
 function cleanPages(pages)
 {
     // Missing or invalid
     if (-1 in pages) delete pages[-1]
     if (-2 in pages) delete pages[-2]
 
-    ExcludedWikiPageIds.forEach(idx => idx in pages ? delete pages[idx] : null);
+    Settings.ExcludedWikiPageIds.forEach(idx => idx in pages ? delete pages[idx] : null);
 }
 
 function setNameToPostal(obj, name)
@@ -160,7 +245,7 @@ function setNameToPostal(obj, name)
 
 function styleFact(name,desc)
 {
-    return `<h3 style="color: ${FactWikiTitleColor}">${name}</h3>${desc}`
+    return `<h3 style="color: ${Settings.FactWikiTitleColor}">${name}</h3>${desc}`
 }
 
 function getTitlesFromLocation()
@@ -225,7 +310,7 @@ function getTitlesFromLocation()
             {
                 let filtered = infos.filter(o => o.order >= 3 && "wikidataId" in o);
 
-                if (filtered.length < MaximumFactCountToDisplay)
+                if (filtered.length < Settings.MaximumFactCountToDisplay)
                 {
                     filtered = infos.filter(o => o.order >= 2 && "wikidataId" in o);
                 }
@@ -335,7 +420,7 @@ function getFactFromTitles(titles)
 
         keys.forEach(k =>
         {
-            if (facts.length >= MaximumFactCountToDisplay) return
+            if (facts.length >= Settings.MaximumFactCountToDisplay) return
 
             let fact = pages[k];
             if (fact == null) return
@@ -344,20 +429,20 @@ function getFactFromTitles(titles)
             reduced = reduced.trimEnd("\n")
             if (reduced.endsWith("refer to:")) return
 
-            if (reduced.length > MaximumFactMessageLength)
+            if (reduced.length > Settings.MaximumFactMessageLength)
             {
                 let paragraphs = reduced.split(". ")
                 let j = 0
                 reduced = paragraphs.length != 0 ? "" : reduced
 
-                while (j < paragraphs.length && reduced.length <= MaximumFactMessageLength)
+                while (j < paragraphs.length && reduced.length <= Settings.MaximumFactMessageLength)
                 {
                     reduced = reduced + ". " + paragraphs[j]
                     j++;
                 }
 
                 // TO-DO: Add "read more" button
-                //reduced = reduced.slice(0,MaximumFactMessageLength) + "..."
+                //reduced = reduced.slice(0,Settings.MaximumFactMessageLength) + "..."
             }
 
             let f = {
@@ -418,24 +503,24 @@ function SetDisplayFact()
 
 function getFactTitleColor(fact)
 {
-    return fact.isGeoFact ? GeographyFactTitleColorName : FamousPlaceFactTitleColorName;
+    return fact.isGeoFact ? Settings.GeographyFactTitleColorName : Settings.FamousPlaceFactTitleColorName;
 }
 
 function getFactTitle(fact)
 {
-    return fact.isGeoFact ? GeographyFactTitle : FamousPlaceFactTitle;
+    return fact.isGeoFact ? Settings.GeographyFactTitle : Settings.FamousPlaceFactTitle;
 }
 
 function getFactTextHtml(fact)
 {
-    return `<div style="color: ${FactWikiTextColor}">` + fact.text.split(". ").reduce((prev, curr) => prev + "<br>" + curr) + "</div>";
+    return `<div style="color: ${Settings.FactWikiTextColor}">` + fact.text.split(". ").reduce((prev, curr) => prev + "<br>" + curr) + "</div>";
 }
 
 function setFactInnerHtml()
 {
     let str = facts
     .map((fact,i) => {
-         return `<br><h2 style="color: ${getFactTitleColor(fact)}">${getFactTitle(fact)} Fact ${DisplayFactNumber ? (i+1) : ""}</h2>(<u><a href="${fact.link}"; style="color: white"><i>source</i></a></u>)<br><div style="text-align: justify;text-justify: inter-word;">${getFactTextHtml(fact)}</div>`
+         return `<br><h2 style="color: ${getFactTitleColor(fact)}">${getFactTitle(fact)} Fact ${Settings.DisplayFactNumber ? (i+1) : ""}</h2>(<u><a href="${fact.link}"; style="color: white"><i>source</i></a></u>)<br><div style="text-align: justify;text-justify: inter-word;">${getFactTextHtml(fact)}</div>`
         })
     .join("<hr>")
 
@@ -455,7 +540,7 @@ function set5RoundGameSummaryDivPlaceHolder()
     let newDiv1 = document.createElement("div")
     let parent = get5RoundGameSummaryDiv();
 
-    if (DisplayFactsBelowButtons) parent.appendChild(newDiv1);
+    if (Settings.DisplayFactsBelowButtons) parent.appendChild(newDiv1);
     else parent.insertBefore(newDiv1, parent.lastElementChild);
 
     newDiv1.innerHTML = SummaryLoadingPlaceHolderInnerHtml;
@@ -474,7 +559,7 @@ function setStreakGameSummaryDivPlaceHolder()
     let newDiv1 = document.createElement("div")
     let parent = getStreakGameSummaryDiv();
 
-    if (DisplayFactsBelowButtons) parent.appendChild(newDiv1);
+    if (Settings.DisplayFactsBelowButtons) parent.appendChild(newDiv1);
     else parent.insertBefore(newDiv1, parent.lastElementChild);
 
     newDiv1.innerHTML = SummaryLoadingPlaceHolderInnerHtml;
@@ -485,6 +570,7 @@ function factCheckStateAttempt(newDiv1) {
 
     if (get5RoundGameSummaryDiv()) set5RoundGameSummaryDivPlaceHolder()
     else if(getStreakGameSummaryDiv()) setStreakGameSummaryDivPlaceHolder()
+
 };
 
 function isInValidGameLocation()
