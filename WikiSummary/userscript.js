@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wiki Summary
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.3
+// @version      0.3.1
 // @description  Display Wikipedia summary of the Geoguessr locations. Works with both streaks and 5 round games.
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts
@@ -142,6 +142,10 @@ function getTitlesFromLocation()
             else
             {
                 let filtered = infos.filter(o => o.order >= 3 && "wikidataId" in o);
+                if (filtered.length < MaximumFactCountToDisplay)
+                {
+                    filtered = infos.filter(o => o.order >= 2 && "wikidataId" in o);
+                }
                 filtered.forEach(obj => obj.description == "postal code" ? setNameToPostal(obj, loc.city == "" ? loc.principalSubdivision : loc.city) : null);
 
                 if (filtered.length == 0)
@@ -170,6 +174,7 @@ function getTitlesFromLocation()
                           "error" in out || !("enwiki" in out.entities[curr.wikidataId].sitelinks)
                           ? ""
                           : (processAndGetWikidataTitle(out, curr) + "|"))
+                    debug(t)
 
                     red = t + red;
                     i++;
@@ -305,13 +310,17 @@ function SetDisplayFact()
         else
         {
             needsWiki = true;
-            facts = [
-                        {
-                            "text": titles,
-                            "link": INVALIDLINK,
-                            "isGeoFact": true
-                        }
-            ]
+            if (titles != null)
+            {
+                facts =
+                [
+                    {
+                        "text": titles,
+                        "link": INVALIDLINK,
+                        "isGeoFact": true
+                    }
+                ]
+            }
             setFactInnerHtml();
         }
     })
