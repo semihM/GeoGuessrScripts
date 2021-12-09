@@ -1,10 +1,13 @@
 // ==UserScript==
 // @name         Wiki Summary
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.3.1
+// @version      0.4.0
 // @description  Display Wikipedia summary of the Geoguessr locations. Works with both streaks and 5 round games.
 // @author       semihM (aka rhinoooo_)
-// @source       https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/WikiSummary/userscript.js
+// @source       https://github.com/semihM/GeoGuessrScripts/blob/main/WikiSummary
+// @supportURL   https://github.com/semihM/GeoGuessrScripts/issues
+// @downloadURL  https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/WikiSummary/userscript.js
+// @updateURL    https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/WikiSummary/userscript.js
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @grant        GM_addStyle
@@ -12,64 +15,141 @@
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// API KEYS
+// API KEYS : Get your keys from following sites
 // - https://www.bigdatacloud.com/
 // - https://opentripmap.io/
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // BigDataCloud for location information
 let BigDataCloud_APIKEY = 'ENTER_API_KEY_HERE'; //Replace ENTER_API_KEY_HERE with yours from https://www.bigdatacloud.com/
+
 // OpenTripMap for places nearby
 let OpenTripMap_APIKEY = 'ENTER_API_KEY_HERE'; //Replace ENTER_API_KEY_HERE with yours from https://opentripmap.io/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// SETTINGS
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-let MaximumFactMessageLength = 420; // Messages can exceed this limit if last sentence is too long
-
-let MaximumFactCountToDisplay = 8; // Maximum amount of facts(geographical + famous place) to display
-let MaximumPlaceFactCountToDisplay = 4; // Maximum amount of famous place facts to display
-
-let PlaceCategoriesToSearchFor = "historic,cultural,natural,architecture"; // Categories for nearby places, check https://opentripmap.io/catalog for other categories. Seperate categories with ',' commas
-let PlaceSearchRadiusInMeters = 1000 // Radius in meters to search for places nearby
-
+// SETTINGS: Right hand side values can be updated if desired
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-let API_URL = "https://api.bigdatacloud.net/data/reverse-geocode?localityLanguage=en&"
-let WIKI_URL = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&origin=*&titles="
-let WIKIDATA_URL = "https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=sitelinks&sitefilter=enwiki&ids="
-let OPENTRIP_URL = `https://api.opentripmap.com/0.1/en/places/radius?radius=${PlaceSearchRadiusInMeters}&limit=${MaximumPlaceFactCountToDisplay}&src_attr=wikidata&kinds=${encodeURIComponent(PlaceCategoriesToSearchFor)}&apikey=`
+const MaximumFactMessageLength = 420; // Maximum fact text length, may exceed the limit if last sentence is long enough
+
+const MaximumPlaceFactCountToDisplay = 4; // Maximum amount of famous place facts to display
+const MaximumFactCountToDisplay = 12; // Maximum amount of facts(geographical + famous place) to display
+
+const PlaceCategoriesToSearchFor = "historic,cultural,natural,architecture"; // Categories for nearby places, check https://opentripmap.io/catalog for other categories. Seperate categories with ',' commas
+const PlaceSearchRadiusInMeters = 1000 // Radius in meters to search for places nearby
+
+const DisplayFactsBelowButtons = false // true: Display facts under the main green continue button; false: Display facts before continue button
+
+const FactWikiTitleColor = "lime" // Fact's wiki title color for both geographical and famous place facts
+const FactWikiTextColor = "white" // Fact's wiki text color for both geographical and famous place facts
+
+const GeographyFactTitle = "Geographical" // Geographical fact title
+const GeographyFactTitleColorName = "orange" // Geographical fact title color name, lowercase
+
+const FamousPlaceFactTitle = "Famous Place" // Famous place fact title
+const FamousPlaceFactTitleColorName = "cyan" // Famous place fact text color name, lowercase
+
+const DisplayFactNumber = true // true: Display fact number after the title; false: Don't display fact number
+
+const ExcludedWikiPageIds =
+      [
+          // Remove the first '//' before the wiki ids ( //12345, -> 12345, ) to exclude the wiki page from results
+          // Add more by adding a ',' comma after the previous wiki id
+          //83759, // USA
+          //13530298, // UK
+      ]
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const DEBUG_ENABLED = false // true: Console print enabled for debugging; false: Don't print any debug information
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const API_URL = "https://api.bigdatacloud.net/data/reverse-geocode?localityLanguage=en&"
+const WIKI_URL = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&origin=*&titles="
+const WIKIDATA_URL = "https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=sitelinks&sitefilter=enwiki&ids="
+const OPENTRIP_URL = `https://api.opentripmap.com/0.1/en/places/radius?radius=${PlaceSearchRadiusInMeters}&limit=${MaximumPlaceFactCountToDisplay}&src_attr=wikidata&kinds=${encodeURIComponent(PlaceCategoriesToSearchFor)}&apikey=`
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const EMPTYAPIKEY = "ENTER_API_KEY_HERE"
+const INVALIDLINK = "#";
+const BIGDATACLOUD_APICOOKIE = "geoguessr_script_semihM_bigdatacloudkey"
+const OPENTRIPMAP_APICOOKIE = "geoguessr_script_semihMopentripmapkey"
+
+const _class_roundResult_5roundGame = "round-result_actions__27yr5"
+const _class_roundResult_streakGame = "streak-round-result_root__1QCM0"
+
+const SummaryLoadingPlaceHolderInnerHtml = `<div id="location-fact" style="text-align:center">Loading wikipedia summaries...</div><br>`
+
+const CookieDays = 365
 
 let checked = parseInt(sessionStorage.getItem("FactLocationChecked"), 10);
 let facts = []
 
-let INVALIDLINK = "#";
+let placeWikidataTitles = []
+let needsWiki = true;
 
 if(sessionStorage.getItem("FactLocationChecked") == null) {
     sessionStorage.setItem("FactLocationChecked", 0);
     checked = 0;
 };
 
-const DEBUG_ENABLED = false
+CheckCookiesForAPIKeys()
 
 function debug(obj)
 {
     if(DEBUG_ENABLED) console.log(obj)
 }
 
+function setCookie(name,value,days) {
+    var expires = "";
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days*24*60*60*1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "") + expires + "; path=/";
+}
+
+function getCookie(name) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for(var i=0;i < ca.length;i++) {
+        var c = ca[i];
+        while (c.charAt(0)==' ') c = c.substring(1,c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+    }
+    return null;
+}
+
+function CheckCookiesForAPIKeys()
+{
+    let key = ""
+    if (BigDataCloud_APIKEY == EMPTYAPIKEY)
+    {
+        if (key = getCookie(BIGDATACLOUD_APICOOKIE)) BigDataCloud_APIKEY = key
+        else if ((key = prompt("Couldn't find bigdatacloud.com API key, please enter your key")) != "") setCookie(BIGDATACLOUD_APICOOKIE, BigDataCloud_APIKEY = key, CookieDays);
+        else return alert("Failed to initialize WikiSummary script. Make sure to add your key manually!")
+    }
+    else setCookie(BIGDATACLOUD_APICOOKIE, BigDataCloud_APIKEY, CookieDays)
+
+    if (OpenTripMap_APIKEY == EMPTYAPIKEY)
+    {
+        if (key = getCookie(OPENTRIPMAP_APICOOKIE)) OpenTripMap_APIKEY = key
+        else if ((key = prompt("Couldn't find opentripmap.io API key, please enter your key")) != "") setCookie(OPENTRIPMAP_APICOOKIE, OpenTripMap_APIKEY = key, CookieDays);
+        else return alert("Failed to initialize WikiSummary script. Make sure to add your key manually!")
+    }
+    else setCookie(OPENTRIPMAP_APICOOKIE, OpenTripMap_APIKEY, CookieDays)
+}
+
 function cleanPages(pages)
 {
-    let exclude = [-2, -1,// Missing or invalid
-                   /* TO-DO: Maybe exclude
-                   83759,// USA
-                   13530298,// UK
-                   1223848,// North EU Plain
-                   1145843,// Atlantic Coastal Plain
-                   */
-                  ]
-    exclude.forEach(idx => idx in pages ? delete pages[idx] : null);
+    // Missing or invalid
+    if (-1 in pages) delete pages[-1]
+    if (-2 in pages) delete pages[-2]
+
+    ExcludedWikiPageIds.forEach(idx => idx in pages ? delete pages[idx] : null);
 }
 
 function setNameToPostal(obj, name)
@@ -80,7 +160,7 @@ function setNameToPostal(obj, name)
 
 function styleFact(name,desc)
 {
-    return `<h3 style="color: green">${name}</h3>${desc}`
+    return `<h3 style="color: ${FactWikiTitleColor}">${name}</h3>${desc}`
 }
 
 function getTitlesFromLocation()
@@ -92,6 +172,8 @@ function getTitlesFromLocation()
         needsWiki = true;
         placeWikidataTitles = [];
 
+        if (loc == null || !("localityInfo" in loc)) return null
+
         let infos = loc.localityInfo.informative.concat(loc.localityInfo.administrative.filter(o => o.adminLevel >= 3))
                 .sort((firstEl, secondEl) => firstEl.order > secondEl.order ? 1 : -1)
 
@@ -99,12 +181,12 @@ function getTitlesFromLocation()
 
         let maxorder = infos[infos.length - 1].order
 
-        debug("infos")
+        debug("]infos")
         debug(infos)
 
         return await getNearByLocationsFromLatLng(loc.latitude, loc.longitude)
         .then(locs => {
-            debug("locs")
+            debug("]locs")
             debug(locs)
             return locs.features.map(place =>
                 "wikidata" in place.properties ?
@@ -119,13 +201,13 @@ function getTitlesFromLocation()
         })
         .then(async places => {
 
-            debug("places")
+            debug("]places")
             debug(places)
 
             infos = infos.concat(places)
                 .sort((firstEl, secondEl) => firstEl.order > secondEl.order ? 1 : -1);
 
-            debug("infos")
+            debug("]infos")
             debug(infos)
 
             let len = Object.keys(infos).length;
@@ -149,24 +231,20 @@ function getTitlesFromLocation()
                 }
 
                 filtered.forEach(obj => obj.description == "postal code" ? setNameToPostal(obj, loc.city == "" ? loc.principalSubdivision : loc.city) : null);
+                debug("]filtered infos")
                 debug(filtered)
 
                 if (filtered.length == 0)
                 {
                     if (infos.length >= 1)
                     {
-                        needsWiki = false;
                         facts = infos.map(obj => { return {"text": styleFact(obj.name, obj.description), "link": INVALIDLINK, "isGeoFact": true} })
-                        return null;
                     }
-                    else
-                    {
-                        needsWiki = false;
-                        return "nothing interesting...";
-                    }
+                    needsWiki = false;
+                    return null;
                 }
 
-                let red = ""
+                let red = []
                 let i = 0;
                 while (i < filtered.length)
                 {
@@ -174,27 +252,36 @@ function getTitlesFromLocation()
                     let t = await fetch(WIKIDATA_URL + curr.wikidataId)
                     .then(res => res.json())
                     .then(out =>
-                          "error" in out || !("enwiki" in out.entities[curr.wikidataId].sitelinks)
+                          (out.success != 1 || "error" in out || !("enwiki" in out.entities[curr.wikidataId].sitelinks))
                           ? ""
-                          : (processAndGetWikidataTitle(out, curr) + "|"))
+                          : processAndGetWikidataTitle(out, curr))
 
-                    red = t + red;
+                    if (t != "" && red.indexOf(t) == -1) red.push(t);
+
                     i++;
                 }
 
-                return red.length > 0 ? red.slice(0, red.length - 1) : red
+                return red.reverse().join("|")
             }
         })
     })
 }
 
-let placeWikidataTitles = []
-
 function processAndGetWikidataTitle(data, obj)
 {
-    if ("isPlaceFact" in obj) placeWikidataTitles.push(data.entities[obj.wikidataId].sitelinks.enwiki.title)
+    let title = data.entities[obj.wikidataId].sitelinks.enwiki.title;
 
-    return encodeURIComponent(data.entities[obj.wikidataId].sitelinks.enwiki.title)
+    if ("isPlaceFact" in obj)
+    {
+        if (placeWikidataTitles.indexOf(title) == -1)
+        {
+            debug("]place title processed: " + title)
+            placeWikidataTitles.push(title)
+        }
+    }
+    else debug("]geographic title processed: " + title)
+
+    return encodeURIComponent(title)
 }
 
 function getLocationObject()
@@ -217,7 +304,6 @@ function getLocationObject()
 function getNearByLocationsFromLatLng(lat, lng)
 {
     let api = OPENTRIP_URL + OpenTripMap_APIKEY + "&lat="+lat+"&lon="+lng
-    debug(api)
     return fetch(api)
         .then(res => res.json())
 }
@@ -238,6 +324,8 @@ function getFactFromTitles(titles)
         facts = []
         let pages = result.query.pages;
         cleanPages(pages);
+
+        debug("]cleaned pages");
         debug(pages)
 
         let keys = Object.keys(pages);
@@ -277,7 +365,7 @@ function getFactFromTitles(titles)
                 "link": "https://en.wikipedia.org/?curid=" + fact.pageid,
                 "isGeoFact": placeWikidataTitles.indexOf(fact.title) == -1
             }
-            debug(f)
+            //debug(f)
             facts.push(f)
         })
 
@@ -285,13 +373,13 @@ function getFactFromTitles(titles)
     });
 }
 
-let needsWiki = true;
 
 function SetDisplayFact()
 {
     getTitlesFromLocation()
         .then(titles => {
-        debug(titles)
+
+        debug("]reduced titles result: " + titles)
         if (needsWiki)
         {
             getFactFromTitles(titles).then(facts => {
@@ -328,106 +416,113 @@ function SetDisplayFact()
     })
 }
 
+function getFactTitleColor(fact)
+{
+    return fact.isGeoFact ? GeographyFactTitleColorName : FamousPlaceFactTitleColorName;
+}
+
+function getFactTitle(fact)
+{
+    return fact.isGeoFact ? GeographyFactTitle : FamousPlaceFactTitle;
+}
+
+function getFactTextHtml(fact)
+{
+    return `<div style="color: ${FactWikiTextColor}">` + fact.text.split(". ").reduce((prev, curr) => prev + "<br>" + curr) + "</div>";
+}
+
 function setFactInnerHtml()
 {
     let str = facts
     .map((fact,i) => {
-         return `<br><h2 style="color: ${(fact.isGeoFact ? "orange" : "cyan")}">${(fact.isGeoFact ? "Geographical" : "Famous Place")} Fact ${i+1}</h2>(<u><a href="${fact.link}"; style="color: white"><i>source</i></a></u>)<br><div style="text-align: justify;text-justify: inter-word;">${fact.text.split(". ").reduce((prev, curr) => prev + "<br>" + curr)}</div>`
+         return `<br><h2 style="color: ${getFactTitleColor(fact)}">${getFactTitle(fact)} Fact ${DisplayFactNumber ? (i+1) : ""}</h2>(<u><a href="${fact.link}"; style="color: white"><i>source</i></a></u>)<br><div style="text-align: justify;text-justify: inter-word;">${getFactTextHtml(fact)}</div>`
         })
     .join("<hr>")
 
     document.getElementById("location-fact").innerHTML = str;
 }
 
-function factAttempt1(newDiv1) {
-    if(document.getElementById("location-fact") == null && document.getElementsByClassName("round-result_distanceDescription__13lR1").length == 1 && location.pathname.startsWith("/game/")) {
-        newDiv1 = document.createElement("div")
-        document.getElementsByClassName("round-result_distanceDescription__13lR1")[0].appendChild(newDiv1);
-        newDiv1.innerHTML = `<div id="location-fact" style="text-align:center">Loading wikipedia summaries...</div><br>`;
-    }
-    // Streaks
-    else if(document.getElementById("location-fact") == null && document.getElementsByClassName("streak-round-result_root__1QCM0").length == 1 && location.pathname.startsWith("/game/")) {
-        newDiv1 = document.createElement("div")
-        document.getElementsByClassName("streak-round-result_root__1QCM0")[0].insertBefore(newDiv1,document.getElementsByClassName("streak-round-result_root__1QCM0")[0].lastElementChild);
-        newDiv1.innerHTML = `<div id="location-fact" style="text-align:center">Loading wikipedia summaries...</div><br>`;
-    };
+// 5 round game round summary div or null
+function get5RoundGameSummaryDiv()
+{
+    let div = document.getElementsByClassName(_class_roundResult_5roundGame);
+    if (div.length == 0) return null
+    else return div[0]
+}
+
+function set5RoundGameSummaryDivPlaceHolder()
+{
+    let newDiv1 = document.createElement("div")
+    let parent = get5RoundGameSummaryDiv();
+
+    if (DisplayFactsBelowButtons) parent.appendChild(newDiv1);
+    else parent.insertBefore(newDiv1, parent.lastElementChild);
+
+    newDiv1.innerHTML = SummaryLoadingPlaceHolderInnerHtml;
+}
+
+// Streak game round summary div or null
+function getStreakGameSummaryDiv()
+{
+    let div = document.getElementsByClassName(_class_roundResult_streakGame);
+    if (div.length == 0) return null
+    else return div[0]
+}
+
+function setStreakGameSummaryDivPlaceHolder()
+{
+    let newDiv1 = document.createElement("div")
+    let parent = getStreakGameSummaryDiv();
+
+    if (DisplayFactsBelowButtons) parent.appendChild(newDiv1);
+    else parent.insertBefore(newDiv1, parent.lastElementChild);
+
+    newDiv1.innerHTML = SummaryLoadingPlaceHolderInnerHtml;
+}
+
+function factCheckStateAttempt(newDiv1) {
+    if(document.getElementById("location-fact") || !isInValidGameLocation()) return
+
+    if (get5RoundGameSummaryDiv()) set5RoundGameSummaryDivPlaceHolder()
+    else if(getStreakGameSummaryDiv()) setStreakGameSummaryDivPlaceHolder()
 };
 
-function tryFactCheck()
+function isInValidGameLocation()
 {
-    if (!!document.querySelector('.result-layout_root__pCZux') && location.pathname.startsWith("/game/") && sessionStorage.getItem("FactLocationChecked") == 0){
+    return location.pathname.startsWith("/game/");
+}
+
+function isFactAlreadyChecked()
+{
+    return sessionStorage.getItem("FactLocationChecked") != 0
+}
+
+function factCheckState()
+{
+    if (!!document.querySelector('.result-layout_root__pCZux') && isInValidGameLocation() && !isFactAlreadyChecked()){
         SetDisplayFact();
         checked = checked + 1;
         sessionStorage.setItem("FactLocationChecked", checked);
     }
-    else if (!document.querySelector('.result-layout_root__pCZux') && location.pathname.startsWith("/game/") && sessionStorage.getItem("FactLocationChecked") != 0) {
+    else if (!document.querySelector('.result-layout_root__pCZux') && isInValidGameLocation() && isFactAlreadyChecked()) {
         checked = 0;
         sessionStorage.setItem("FactLocationChecked", checked)
     };
+}
 
-    setTimeout(function() {
-        if (!!document.querySelector('.result-layout_root__pCZux') && location.pathname.startsWith("/game/") && sessionStorage.getItem("FactLocationChecked") == 0){
-            SetDisplayFact();
-            checked = checked + 1;
-            sessionStorage.setItem("FactLocationChecked", checked);
-        }
-        else if (!document.querySelector('.result-layout_root__pCZux') && location.pathname.startsWith("/game/") && sessionStorage.getItem("FactLocationChecked") != 0) {
-            checked = 0;
-            sessionStorage.setItem("FactLocationChecked", checked)
-        };
-    }, 250);
+function tryFactCheck()
+{
+    factCheckState();
 
-    setTimeout(function() {
-        if (!!document.querySelector('.result-layout_root__pCZux') && location.pathname.startsWith("/game/") && sessionStorage.getItem("FactLocationChecked") == 0){
-            SetDisplayFact();
-            checked = checked + 1;
-            sessionStorage.setItem("FactLocationChecked", checked);
-        }
-        else if (!document.querySelector('.result-layout_root__pCZux') && location.pathname.startsWith("/game/") && sessionStorage.getItem("FactLocationChecked") != 0) {
-            checked = 0;
-            sessionStorage.setItem("FactLocationChecked", checked)
-        };
-    }, 500);
+    setTimeout(factCheckState, 250);
+    setTimeout(factCheckState, 500);
+    setTimeout(factCheckState, 1200);
+    setTimeout(factCheckState, 2000);
 
-    setTimeout(function() {
-        if (!!document.querySelector('.result-layout_root__pCZux') && location.pathname.startsWith("/game/") && sessionStorage.getItem("FactLocationChecked") == 0){
-            SetDisplayFact();
-            checked = checked + 1;
-            sessionStorage.setItem("FactLocationChecked", checked);
-        }
-        else if (!document.querySelector('.result-layout_root__pCZux') && location.pathname.startsWith("/game/") && sessionStorage.getItem("FactLocationChecked") != 0) {
-            checked = 0;
-            sessionStorage.setItem("FactLocationChecked", checked)
-        };
-    }, 1200);
-
-    setTimeout(function() {
-        if (!!document.querySelector('.result-layout_root__pCZux') && location.pathname.startsWith("/game/") && sessionStorage.getItem("FactLocationChecked") == 0){
-            SetDisplayFact();
-            checked = checked + 1;
-            sessionStorage.setItem("FactLocationChecked", checked);
-        }
-        else if (!document.querySelector('.result-layout_root__pCZux') && location.pathname.startsWith("/game/") && sessionStorage.getItem("FactLocationChecked") != 0) {
-            checked = 0;
-            sessionStorage.setItem("FactLocationChecked", checked)
-        };
-    }, 2000);
-
-    setTimeout(function(){
-        factAttempt1();
-    },300);
-
-    setTimeout(function(){
-        factAttempt1();
-    },500);
-
-    setTimeout(function(){
-        factAttempt1();
-    },1200);
-
-    setTimeout(function(){
-        factAttempt1();
-    },2000);
+    setTimeout(factCheckStateAttempt,300);
+    setTimeout(factCheckStateAttempt,500);
+    setTimeout(factCheckStateAttempt,1200);
+    setTimeout(factCheckStateAttempt,2000);
 };
 
 document.addEventListener('click', tryFactCheck, false);
