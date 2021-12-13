@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LatitudeGuessr
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.0.2
+// @version      0.0.3
 // @description  Are you tired of getting the latitude correctly but not the longitude? This script will show the TRUE score of your guess.
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/LatitudeGuessr
@@ -60,6 +60,8 @@ function SetDisplayFact()
 
         debug("]real_loc: ")
         debug(loc)
+        if ( loc.player.guesses.length == 1 ) sessionStorage.setItem("RealScoreTotal", 0)
+        
         real_latitude = loc.rounds[loc.player.guesses.length - 1].lat
         guessed_latitude = loc.player.guesses[loc.player.guesses.length - 1].lat
         setRealScoreInnerHtml();
