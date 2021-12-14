@@ -20,3 +20,9 @@
 
 - Script should be able to auto-update itself if installed correctly.
 - Although there is a slight hassle with the current setup, that is the restoration of settings between updates. It is done by manually copy pasting a prompted message after an update was installed.
+
+## LatitudeGuessr
+- Calculate your score from the latitude only! Guessing Greece instead of Spain won't be punishing anymore!
+- Install with greasyfork: https://greasyfork.org/en/scripts/436996-latitudeguessr
+- Raw script data: https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/LatitudeGuessr/userscript.js
+- No API required
