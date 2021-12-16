@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wiki Summary
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.4.1
+// @version      0.4.2
 // @description  Display Wikipedia summary of the Geoguessr locations. Works with both streaks and 5 round games.
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/WikiSummary
@@ -48,9 +48,9 @@ let Settings =
         "MaximumFactCountToDisplay": 10,
 
         // Categories for nearby places, check https://opentripmap.io/catalog for other categories. Seperate categories with ',' commas
-        "PlaceCategoriesToSearchFor": "historic,cultural,natural,architecture",
+        "PlaceCategoriesToSearchFor": "historic,cultural,natural,architecture,religion",
         // Radius in meters to search for places nearby
-        "PlaceSearchRadiusInMeters": 1000,
+        "PlaceSearchRadiusInMeters": 2000,
 
         // true: Display facts under the main green continue button; false: Display facts before continue button
         "DisplayFactsBelowButtons": true,
@@ -96,7 +96,7 @@ const OPENTRIP_URL = `https://api.opentripmap.com/0.1/en/places/radius?radius=${
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const SettingsVersion = 1; // DO NOT CHANGE MANUALLY
+const SettingsVersion = 2; // DO NOT CHANGE MANUALLY
 
 const EMPTYAPIKEY = "ENTER_API_KEY_HERE"
 const INVALIDLINK = "#";
@@ -105,10 +105,12 @@ const OPENTRIPMAP_APICOOKIE = "geoguessr_script_semihMopentripmapkey"
 const SETTINGS_COOKIE = "geoguessr_script_semihM_WikiSummarySettings"
 const SETTINGS_ASKED_COOKIE = "geoguessr_script_semihM_WikiSummarySettingsAsked"
 
+const _id_fact_div = "location-fact"
 const _class_roundResult_5roundGame = "round-result_actions__27yr5"
 const _class_roundResult_streakGame = "streak-round-result_root__1QCM0"
+const _class_correct_loc = 'styles_circle__2tw8L styles_variantFloating__mawbd styles_colorWhite__2QcUQ styles_borderSizeFactorOne__2Di08'
 
-const SummaryLoadingPlaceHolderInnerHtml = `<div id="location-fact" style="text-align:center">Loading wikipedia summaries...</div><br>`
+const SummaryLoadingPlaceHolderInnerHtml = `<div id="${_id_fact_div}" style="text-align:center">Loading wikipedia summaries...</div><br>`
 
 const CookieDays = 365
 
@@ -196,7 +198,7 @@ function CheckCookiesForSettings()
         let cookieSettings = JSON.parse(settings)
         if (asked != SettingsVersion) // There was an update
         {
-            let restore = window.confirm("There was an update to WikiSummary(by rhino). Would you like to restore the old settings ?");
+            let restore = window.confirm("There was an update to WikiSummary(by rhino). Would you like to restore the old settings ? Click \"Cancel\" if you havent made any changes and use default settings.");
 
             setCookie(SETTINGS_ASKED_COOKIE, SettingsVersion, CookieDays)
 
@@ -212,9 +214,26 @@ function CheckCookiesForSettings()
 
                 let cookiesets = JSON.stringify(cookieSettings)
                 setCookie(SETTINGS_COOKIE, cookiesets, CookieDays) // Use from cookies
-                prompt("Copy the following and replace your current settings in the script source code!", cookiesets)
-                while (!window.confirm("Current settings written in the script will override old settings. Have you updated and saved the settings part in the script?"))
-                {}
+
+                let jsonframe = document.createElement("pre")
+                jsonframe.innerHTML = "<pre>// Setting start around line 40\n// v COPY STARTING FROM THE LINE BELOW v\nlet Settings = "+JSON.stringify(cookieSettings,undefined, 2) +"</pre>"
+
+                let myDialog = document.createElement("dialog");
+                document.body.appendChild(myDialog)
+
+                myDialog.appendChild(jsonframe);
+
+                let closeBtn = document.createElement("p")
+                closeBtn.style = "background-color: red; color: white; font-size:18px; border: 2px solid black; width: auto; text-align:center;"
+                closeBtn.textContent = "Click here to close this frame"
+                closeBtn.onclick = () => myDialog.remove()
+
+                myDialog.appendChild(closeBtn);
+                myDialog.appendChild(jsonframe);
+
+                myDialog.showModal();
+
+                alert("Old settings will be shown in a small window for copying, paste them into the Wiki Summary script!")
             }
             else
             {
@@ -369,21 +388,71 @@ function processAndGetWikidataTitle(data, obj)
     return encodeURIComponent(title)
 }
 
-function getLocationObject()
+async function btnClick(btn) {
+    return new Promise(resolve => btn.onclick = () => resolve());
+}
+
+async function getLocationObject()
 {
     const game_tag = window.location.href.substring(window.location.href.lastIndexOf('/') + 1)
     const api_url = "https://www.geoguessr.com/api/v3/games/"+game_tag
 
-    return fetch(api_url)
-    .then(res => res.json())
-    .then(out => {
-        let guess_counter = out.player.guesses.length
+    if (isInChallange())
+    {
+        let i = 1
+        while (document.getElementsByClassName(_class_correct_loc).length == 0)
+        {
+            i++;
+            (async () => await new Promise(resolve => setTimeout(resolve, 500)))();
+            if ( i > 5 ) return null
+        }
+        debug(">Found correct loc in " + i + " tries")
 
-        let lat = out.rounds[guess_counter-1].lat;
-        let lng = out.rounds[guess_counter-1].lng;
+        let correct_locdiv = document.getElementsByClassName(_class_correct_loc)[0].parentElement.parentElement
 
-        return getLocationFromLatLng(lat, lng);
-    })
+        let centerPoint = document.createElement("span")
+        centerPoint.id = "wikiSummaryChallengeCenterPoint"
+        centerPoint.style = "position: absolute; top: 50%; left: 50%;height: 26px; width: 26px; background-color: #FFFFFF; border-radius: 50%; display: inline-block; z-index: 999999; border: 4px dashed red;opacity:55%;"
+        centerPoint.title = "Drag this onto the correct location and click to view wiki summaries!"
+
+        correct_locdiv.parentElement.parentElement.parentElement.appendChild(centerPoint)
+
+        let centerPointExplain = document.createElement("p")
+        centerPointExplain.id = "wikiSummaryChallengeCenterPointExplain"
+        centerPointExplain.style = "position: absolute; top: 45%; left: 35%;height: auto; width: auto; background-color: #000000; display: none; z-index: 999999;font-size: 20px;"
+        centerPointExplain.textContent = "Drag this onto the correct location and click to view wiki summaries!"
+        centerPoint.onmouseover = () => centerPointExplain.style.display = "inline-block"
+        centerPoint.onmouseout = () => centerPointExplain.style.display = "none"
+
+        correct_locdiv.parentElement.parentElement.parentElement.appendChild(centerPointExplain)
+
+        let parent = get5RoundGameSummaryDiv();
+
+        await btnClick(centerPoint);
+        centerPoint.remove()
+        centerPointExplain.remove()
+
+        let midlink = document.querySelector('[title="Open this area in Google Maps (opens a new window)"]').href;
+        let lat_lng = midlink.split("&")[0].split("https://maps.google.com/maps?ll=")[1].split(",").map(x=>parseFloat(x,10))
+
+        debug("]lat_lng")
+        debug(lat_lng)
+
+        return getLocationFromLatLng(lat_lng[0], lat_lng[1]);
+    }
+    else
+    {
+        return fetch(api_url)
+            .then(res => res.json())
+            .then(out => {
+            let guess_counter = out.player.guesses.length
+
+            let lat = out.rounds[guess_counter-1].lat;
+            let lng = out.rounds[guess_counter-1].lng;
+
+            return getLocationFromLatLng(lat, lng);
+        })
+    }
 }
 
 function getNearByLocationsFromLatLng(lat, lng)
@@ -524,7 +593,7 @@ function setFactInnerHtml()
         })
     .join("<hr>")
 
-    document.getElementById("location-fact").innerHTML = str;
+    document.getElementById(_id_fact_div).innerHTML = str;
 }
 
 // 5 round game round summary div or null
@@ -566,16 +635,21 @@ function setStreakGameSummaryDivPlaceHolder()
 }
 
 function factCheckStateAttempt(newDiv1) {
-    if(document.getElementById("location-fact") || !isInValidGameLocation()) return
+    if(document.getElementById(_id_fact_div) || !isInValidGameLocation()) return
 
     if (get5RoundGameSummaryDiv()) set5RoundGameSummaryDivPlaceHolder()
     else if(getStreakGameSummaryDiv()) setStreakGameSummaryDivPlaceHolder()
 
 };
 
+function isInChallange()
+{
+    return location.pathname.startsWith("/challenge/");
+}
+
 function isInValidGameLocation()
 {
-    return location.pathname.startsWith("/game/");
+    return location.pathname.startsWith("/game/") || isInChallange();
 }
 
 function isFactAlreadyChecked()
