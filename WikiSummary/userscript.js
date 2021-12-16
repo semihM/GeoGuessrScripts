@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wiki Summary
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.4.2
+// @version      0.4.3
 // @description  Display Wikipedia summary of the Geoguessr locations. Works with both streaks and 5 round games.
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/WikiSummary
@@ -96,7 +96,7 @@ const OPENTRIP_URL = `https://api.opentripmap.com/0.1/en/places/radius?radius=${
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const SettingsVersion = 2; // DO NOT CHANGE MANUALLY
+const SettingsVersion = 3; // DO NOT CHANGE MANUALLY
 
 const EMPTYAPIKEY = "ENTER_API_KEY_HERE"
 const INVALIDLINK = "#";
@@ -392,6 +392,11 @@ async function btnClick(btn) {
     return new Promise(resolve => btn.onclick = () => resolve());
 }
 
+function getCorrectLocationDivForChallenge()
+{
+    return document.querySelector('[alt="Correct location"]').parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement
+}
+
 async function getLocationObject()
 {
     const game_tag = window.location.href.substring(window.location.href.lastIndexOf('/') + 1)
@@ -400,7 +405,7 @@ async function getLocationObject()
     if (isInChallange())
     {
         let i = 1
-        while (document.getElementsByClassName(_class_correct_loc).length == 0)
+        while (document.querySelector('[alt="Correct location"]') == null)
         {
             i++;
             (async () => await new Promise(resolve => setTimeout(resolve, 500)))();
@@ -408,7 +413,9 @@ async function getLocationObject()
         }
         debug(">Found correct loc in " + i + " tries")
 
-        let correct_locdiv = document.getElementsByClassName(_class_correct_loc)[0].parentElement.parentElement
+        let correct_locdiv = getCorrectLocationDivForChallenge()
+        debug("]div")
+        debug(correct_locdiv)
 
         let centerPoint = document.createElement("span")
         centerPoint.id = "wikiSummaryChallengeCenterPoint"
@@ -425,8 +432,6 @@ async function getLocationObject()
         centerPoint.onmouseout = () => centerPointExplain.style.display = "none"
 
         correct_locdiv.parentElement.parentElement.parentElement.appendChild(centerPointExplain)
-
-        let parent = get5RoundGameSummaryDiv();
 
         await btnClick(centerPoint);
         centerPoint.remove()
