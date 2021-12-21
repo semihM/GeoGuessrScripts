@@ -26,3 +26,24 @@
 - Install with greasyfork: https://greasyfork.org/en/scripts/436996-latitudeguessr
 - Raw script data: https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/LatitudeGuessr/userscript.js
 - No API required
+- Script should be able to auto-update itself if installed correctly.
+
+## GuessPortal
+- Embed streetview of your guess and the correct location to the window after a round ends
+- Install with greasyfork: https://greasyfork.org/en/scripts/437407-guessportal
+- Raw script data: https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/GuessPortal/userscript.js
+- Google Maps API Key is required for streetview embedding. 
+- Follow the instructions to get it working:
+  + Go to https://console.cloud.google.com/projectselector2/google/maps-apis/credentials
+
+  + Create a project (Name and organization doesn't matter)
+
+  + Select the project
+
+  + Click "Create credentials" on top and select API key.
+
+  + The API key created dialog displays your newly created API key.
+
+  + (OPTIONAL) Click "Edit API key" on the left and under "Application restrictions" select "HTTP referrers". Add "https://www.geoguessr.com/" under "Website restrictions" to restrict API key's use to geoguessr
+ 
+- Script should be able to auto-update itself if installed correctly.
