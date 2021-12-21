@@ -1,15 +1,13 @@
 # GeoGuessr Scripts
 - A collection of personal scripts for GeoGuessr
+- Scripts work with Tampermonkey extension. Install Tampermonkey browser extension (for chrome: https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
+
 ## Wiki Summary
 - Display wiki and nearby famous/touristy place information about the location you get at the end of a round. Works with classic 5-round games and country/state streaks
 - Install with greasyfork: https://greasyfork.org/en/scripts/436842-wiki-summary
 - Raw script data: https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/WikiSummary/userscript.js
 - Uses 2 free API's to work.  (first api key at step 3 can be replaced with "country streaks" script api key if you already have that)
 - Follow these steps to get it working:
-  + Install Tampermonkey browser extension (for chrome: https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
-
-  + Create a new script from extension settings and paste the raw script data. Keep this window open.
-
   + Get your first free API key from https://www.bigdatacloud.com/ and replace first ENTER_API_KEY with your key (used for getting geographical data) 
 
   + Get your second free API key from https://opentripmap.io/ and replace second ENTER_API_KEY with your key (used for finding famous locations around) 
