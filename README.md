@@ -45,3 +45,10 @@
   + (OPTIONAL) Click "Edit API key" on the left and under "Application restrictions" select "HTTP referrers". Add "https://www.geoguessr.com/" under "Website restrictions" to restrict API key's use to geoguessr
  
 - Script should be able to auto-update itself if installed correctly.
+
+## GeoRadio
+- Get a link to the closest radio station and start listening to some local music!
+- Install with greasyfork: https://greasyfork.org/en/scripts/437489-georadio
+- Raw script data: https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/GeoRadio/userscript.js
+- No API required
+- Script should be able to auto-update itself if installed correctly.
