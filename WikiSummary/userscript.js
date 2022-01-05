@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wiki Summary
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.4.3
+// @version      0.4.4
 // @description  Display Wikipedia summary of the Geoguessr locations. Works with both streaks and 5 round games.
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/WikiSummary
@@ -106,8 +106,8 @@ const SETTINGS_COOKIE = "geoguessr_script_semihM_WikiSummarySettings"
 const SETTINGS_ASKED_COOKIE = "geoguessr_script_semihM_WikiSummarySettingsAsked"
 
 const _id_fact_div = "location-fact"
-const _class_roundResult_5roundGame = "round-result_actions__27yr5"
-const _class_roundResult_streakGame = "streak-round-result_root__1QCM0"
+const _class_roundResult_5roundGame = "round-result_actions__5j26U"
+const _class_roundResult_streakGame = "streak-round-result_root__WxUU9"
 const _class_correct_loc = 'styles_circle__2tw8L styles_variantFloating__mawbd styles_colorWhite__2QcUQ styles_borderSizeFactorOne__2Di08'
 
 const SummaryLoadingPlaceHolderInnerHtml = `<div id="${_id_fact_div}" style="text-align:center">Loading wikipedia summaries...</div><br>`
@@ -664,12 +664,12 @@ function isFactAlreadyChecked()
 
 function factCheckState()
 {
-    if (!!document.querySelector('.result-layout_root__pCZux') && isInValidGameLocation() && !isFactAlreadyChecked()){
+    if (!!document.querySelector('.result-layout_root__NfX12') && isInValidGameLocation() && !isFactAlreadyChecked()){
         SetDisplayFact();
         checked = checked + 1;
         sessionStorage.setItem("FactLocationChecked", checked);
     }
-    else if (!document.querySelector('.result-layout_root__pCZux') && isInValidGameLocation() && isFactAlreadyChecked()) {
+    else if (!document.querySelector('.result-layout_root__NfX12') && isInValidGameLocation() && isFactAlreadyChecked()) {
         checked = 0;
         sessionStorage.setItem("FactLocationChecked", checked)
     };
