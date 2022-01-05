@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GuessPortal
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.0.1
+// @version      0.0.2
 // @description  Display streetview of the guessed location and the correct location after a guess in GeoGuessr. Works in classic rounds, streaks and (with some user input) challenges!
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/GuessPortal
@@ -58,10 +58,10 @@ const INVALIDLINK = "#";
 const _id_streetview_div_guess = "location-guess-streetview"
 const _id_streetview_div_correct = "location-correct-streetview"
 
-const _class_roundResult_5roundGame = "result-layout_content__uyVIj"
-const _class_roundResult_streakGame = "streak-round-result_root__1QCM0"
+const _class_roundResult_5roundGame = "result-layout_content__jAHfP"
+const _class_roundResult_streakGame = "streak-round-result_root__WxUU9"
 const _class_correct_loc = 'styles_circle__2tw8L styles_variantFloating__mawbd styles_colorWhite__2QcUQ styles_borderSizeFactorOne__2Di08'
-const _class_score_viewtarget = 'container_content__1CI3g'
+const _class_score_viewtarget = 'container_content__H3tXS'
 
 const StreetViewPlaceHolderGuess = `<div id="${_id_streetview_div_guess}" align="left" style="cursor:pointer;text-align:center;z-index:99999;color:cyan;background-color:black">Waiting for streetview link...</div>`
 const StreetViewPlaceHolderCorrect = `<div id="${_id_streetview_div_correct}" align="right" style="cursor:pointer;text-align:center;z-index:99999;color:lime;background-color:black">Waiting for streetview link...</div>`
@@ -535,12 +535,12 @@ let stopTimeouts = false
 
 function portalCheckState()
 {
-    if (!!document.querySelector('.result-layout_root__pCZux') && isInValidGameLocation() && !isFactAlreadyChecked()){
+    if (!!document.querySelector('.result-layout_root__NfX12') && isInValidGameLocation() && !isFactAlreadyChecked()){
         SetStreetViewButtons();
         checked = checked + 1;
         sessionStorage.setItem(checkerName, checked);
     }
-    else if (!document.querySelector('.result-layout_root__pCZux') && isInValidGameLocation() && isFactAlreadyChecked()) {
+    else if (!document.querySelector('.result-layout_root__NfX12') && isInValidGameLocation() && isFactAlreadyChecked()) {
         checked = 0;
         sessionStorage.setItem(checkerName, checked)
     };
