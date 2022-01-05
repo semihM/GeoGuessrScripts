@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LatitudeGuessr
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.0.3
+// @version      0.0.4
 // @description  Are you tired of getting the latitude correctly but not the longitude? This script will show the TRUE score of your guess.
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/LatitudeGuessr
@@ -20,8 +20,8 @@ const DEBUG_ENABLED = false // true: Console print enabled for debugging; false:
 
 const _storage_checked = "RealScoreChecked"
 const _id_realscore = "latitude_score"
-const _class_roundResult_5roundGame = "round-result_actions__27yr5"
-const _class_endResult_5roundGame = "standard-final-result_progressSection__2yU97"
+const _class_roundResult_5roundGame = "round-result_actions__5j26U"
+const _class_endResult_5roundGame = "streak-round-result_progressSection__6jL1y"
 
 const SummaryLoadingPlaceHolderInnerHtml = `<div id="` + _id_realscore + `" style="text-align:center">Calculating the true score...</div><br>`
 
@@ -140,12 +140,12 @@ function isRealScoreAlreadyChecked()
 
 function scoreCheckState()
 {
-    if (!!document.querySelector('.result-layout_root__pCZux') && isInValidGameLocation() && !isRealScoreAlreadyChecked()){
+    if (!!document.querySelector('.result-layout_root__NfX12') && isInValidGameLocation() && !isRealScoreAlreadyChecked()){
         SetDisplayFact();
         checked = checked + 1;
         sessionStorage.setItem(_storage_checked, checked);
     }
-    else if (!document.querySelector('.result-layout_root__pCZux') && isInValidGameLocation() && isRealScoreAlreadyChecked()) {
+    else if (!document.querySelector('.result-layout_root__NfX12') && isInValidGameLocation() && isRealScoreAlreadyChecked()) {
         checked = 0;
         sessionStorage.setItem(_storage_checked, checked)
     };
