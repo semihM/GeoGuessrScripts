@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GeoRadio
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.0.3
+// @version      0.0.4
 // @description  Listen to the radio stations of the country you get in GeoGuessr rounds
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/GeoRadio
