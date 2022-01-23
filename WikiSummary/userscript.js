@@ -369,17 +369,20 @@ function getCorrectLocationDivForChallenge() {
 }
 
 async function getLocationObject() {
+    let link = window.location.href
+    if (link.endsWith("/invite")) link = link.slice(0, -7);
+
     // id of the game (normal game)
-    const game_tag = window.location.href.substring(window.location.href.lastIndexOf('/') + 1)
-    let api_url = "https://www.geoguessr.com/api/v3/games/" + game_tag
+    let game_tag = link.substring(link.lastIndexOf('/') + 1)
 
     // id of the game (challenge)
     if (isInChallange()) {
         const data_challenge = JSON.parse(document.getElementById("__NEXT_DATA__").innerHTML);
-        const challenge_game_token = data_challenge.props.pageProps.game.token;
-        api_url = "https://www.geoguessr.com/api/v3/games/" + challenge_game_token;
+        if (data_challenge.props.pageProps.hasOwnProperty('game')) game_tag = data_challenge.props.pageProps.game.token;
+        else game_tag = data_challenge.props.pageProps.gamePlayedByCurrentUser.token;
     }
 
+    const api_url = "https://www.geoguessr.com/api/v3/games/" + game_tag
     return fetch(api_url)
         .then(res => res.json())
         .then(out => {
