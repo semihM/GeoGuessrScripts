@@ -76,7 +76,15 @@ function haversine_distance(mk1, mk2) {
     return d;
 }
 
-async function getLocationObject() {
+function getLocationObject() {
+    const game_tag = getGameTag()
+    const api_url = "https://www.geoguessr.com/api/v3/games/" + game_tag
+
+    return fetch(api_url)
+        .then(res => res.json())
+}
+
+function getGameTag() {
     let link = window.location.href
     if (link.endsWith("/invite")) link = link.slice(0, -7);
 
@@ -90,9 +98,7 @@ async function getLocationObject() {
         else game_tag = data_challenge.props.pageProps.gamePlayedByCurrentUser.token;
     }
 
-    const api_url = "https://www.geoguessr.com/api/v3/games/" + game_tag
-    const res = await fetch(api_url);
-    return await res.json();
+    return game_tag
 }
 
 function startRadio() {

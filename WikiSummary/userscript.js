@@ -369,8 +369,24 @@ function getCorrectLocationDivForChallenge() {
 }
 
 async function getLocationObject() {
+    const game_tag = getGameTag()
+    const api_url = "https://www.geoguessr.com/api/v3/games/" + game_tag
+
+    return fetch(api_url)
+        .then(res => res.json())
+        .then(out => {
+            let guess_counter = out.player.guesses.length
+
+            let lat = out.rounds[guess_counter - 1].lat;
+            let lng = out.rounds[guess_counter - 1].lng;
+
+            return getLocationFromLatLng(lat, lng);
+        })
+}
+
+function getGameTag() {
     let link = window.location.href
-    if (link.endsWith("/invite")) link = link.slice(0, -7);
+        // if (link.endsWith("/invite")) link = link.slice(0, -7);
 
     // id of the game (normal game)
     let game_tag = link.substring(link.lastIndexOf('/') + 1)
@@ -382,17 +398,7 @@ async function getLocationObject() {
         else game_tag = data_challenge.props.pageProps.gamePlayedByCurrentUser.token;
     }
 
-    const api_url = "https://www.geoguessr.com/api/v3/games/" + game_tag
-    return fetch(api_url)
-        .then(res => res.json())
-        .then(out => {
-            let guess_counter = out.player.guesses.length
-
-            let lat = out.rounds[guess_counter - 1].lat;
-            let lng = out.rounds[guess_counter - 1].lng;
-
-            return getLocationFromLatLng(lat, lng);
-        })
+    return game_tag
 }
 
 function getNearByLocationsFromLatLng(lat, lng) {
