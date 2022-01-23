@@ -70,7 +70,7 @@ let Settings = {
     "FamousPlaceFactTitleColorName": "cyan",
 
     // Source link color name, lowercase
-    "SourceLinkColorName": "white",
+    "SourceLinkColorName": "silver",
 
     // true: Display fact number after the title; false: Don't display fact number
     "DisplayFactNumber": true,
