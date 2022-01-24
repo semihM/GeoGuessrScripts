@@ -2,7 +2,7 @@
 // @name         Wiki Summary
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
 // @version      0.4.5
-// @description  Display Wikipedia summary of the Geoguessr locations. Works with both streaks and 5 round games.
+// @description  Display Wikipedia summary of the Geoguessr locations. Works with streaks, single player 5 round games and challenges.
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/WikiSummary
 // @supportURL   https://github.com/semihM/GeoGuessrScripts/issues
