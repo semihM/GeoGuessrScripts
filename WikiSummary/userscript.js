@@ -100,7 +100,7 @@ const OPENTRIP_URL = `https://api.opentripmap.com/0.1/en/places/radius?radius=${
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const SettingsVersion = 4; // DO NOT CHANGE MANUALLY
+const SettingsVersion = 5; // DO NOT CHANGE MANUALLY
 
 const EMPTYAPIKEY = "ENTER_API_KEY_HERE"
 const INVALIDLINK = "#";
