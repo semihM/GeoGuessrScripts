@@ -16,8 +16,8 @@
 // SETTINGS
 
 let Settings = {
-    // true: Center pop-up in the browser
-    "CenterPopUp": true,
+    // true: Pop-up in the center of the browser, false: Pop-up in the upper-left corner
+    "CenterPopUp": false,
 
     // Button text color name, lowercase
     "ButtonTextColorName": "orange",
