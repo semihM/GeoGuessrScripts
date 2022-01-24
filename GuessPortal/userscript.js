@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GuessPortal
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.0.2
+// @version      0.0.3
 // @description  Display streetview of the guessed location and the correct location after a guess in GeoGuessr. Works in classic rounds, streaks and (with some user input) challenges!
 // @author       semihM (aka rhinoooo_)
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/GuessPortal
@@ -122,100 +122,31 @@ function getCorrectLocationDivForChallenge()
 async function getLatLng()
 {
     const game_tag = window.location.href.substring(window.location.href.lastIndexOf('/') + 1)
-    const api_url = "https://www.geoguessr.com/api/v3/games/"+game_tag
+    const game_endpoint = "https://www.geoguessr.com/api/v3/games/" + game_tag
+    const challenge_endpoint = "https://www.geoguessr.com/api/v3/challenges/" + game_tag + "/game"
+    let api_url = isInChallange() ? challenge_endpoint : game_endpoint
 
-    if (isInChallange())
-    {
-        let i = 1
-        while (document.querySelector('[alt="Correct location"]') == null)
+    return await fetch(api_url)
+        .then(res => res.json())
+        .then(out => {
+        debug(out,"geoAPI")
+
+        let guess_counter = out.player.guesses.length
+
+        let lat = out.rounds[guess_counter-1].lat;
+        let lng = out.rounds[guess_counter-1].lng;
+
+        if(out.mode == "streak")
         {
-            i++;
-            (async () => await new Promise(resolve => setTimeout(resolve, 500)))();
-            if ( i > 10 ) return {"guess":[0,0], "correct": [0,0]}
+            return {"correct": [lat, lng]};
         }
-        debug(">Found correct loc in " + i + " tries")
 
-        let correct_locdiv = getCorrectLocationDivForChallenge()
-        debug("]div")
-        debug(correct_locdiv)
-
-        let centerPoint = document.getElementById("wikiSummaryChallengeCenterPoint") // Use same one from wiki summary if exists
-        if (!centerPoint)
-        {
-            centerPoint = document.createElement("span")
-            centerPoint.id = "guessPortalChallengeCenterPoint"
-            centerPoint.style = "position: absolute; top: 50%; left: 50%;height: 26px; width: 26px; background-color: #FFFFFF; border-radius: 50%; display: inline-block; z-index: 999999; border: 4px dashed red;opacity:55%;"
-
-            correct_locdiv.parentElement.parentElement.parentElement.appendChild(centerPoint)
-        }
-        centerPoint.title = "Drag this onto the CORRECT LOCATION and click for embedded streetview!"
-
-        let centerPointExplain = document.getElementById("wikiSummaryChallengeCenterPointExplain") // Use same one from wiki summary if exists
-        if (!centerPointExplain)
-        {
-            centerPointExplain = document.createElement("p")
-            centerPointExplain.id = "guessPortalChallengeCenterPointExplain"
-            centerPointExplain.style = "position: absolute; top: 60%; left: 35%;height: auto; width: auto; background-color: #000000; display: none; z-index: 999999;font-size: 20px;"
-            centerPoint.onmouseover = () => centerPointExplain.style.display = "inline-block"
-            centerPoint.onmouseout = () => centerPointExplain.style.display = "none"
-
-            correct_locdiv.parentElement.parentElement.parentElement.appendChild(centerPointExplain)
-        }
-        centerPointExplain.textContent = centerPoint.title
-
-        await btnClick(centerPoint);
-
-        let midlink = document.querySelector('[title="Open this area in Google Maps (opens a new window)"]').href;
-        let lat_lng = midlink.split("&")[0].split("https://maps.google.com/maps?ll=")[1].split(",").map(x=>parseFloat(x,10))
-
-
-        debug("]lat_lng correct")
-        debug(lat_lng)
-
-        centerPoint.style.border = "4px dashed cyan"
-        centerPoint.title = "Drag this onto YOUR GUESS and click for embedded streetview!"
-        centerPointExplain.textContent = centerPoint.title
-        centerPoint.onmouseover = () => centerPointExplain.style.display = "inline-block"
-        centerPoint.onmouseout = () => centerPointExplain.style.display = "none"
-
-        correct_locdiv.parentElement.parentElement.parentElement.appendChild(centerPointExplain)
-
-        await btnClick(centerPoint);
-        centerPoint.remove()
-        centerPointExplain.remove()
-
-        debug("]lat_lng guess")
-        debug(lat_lng)
-
-        midlink = document.querySelector('[title="Open this area in Google Maps (opens a new window)"]').href;
-        let lat_lng_guess = midlink.split("&")[0].split("https://maps.google.com/maps?ll=")[1].split(",").map(x=>parseFloat(x,10))
-
-        return {"guess":lat_lng_guess, "correct": lat_lng};
-    }
-    else
-    {
-        return await fetch(api_url)
-            .then(res => res.json())
-            .then(out => {
-            debug(out,"geoAPI")
-
-            let guess_counter = out.player.guesses.length
-
-            let lat = out.rounds[guess_counter-1].lat;
-            let lng = out.rounds[guess_counter-1].lng;
-
-            if(out.mode == "streak")
-            {
-                return {"correct": [lat, lng]};
-            }
-
-            return {"guess":[out.player.guesses[guess_counter-1].lat, out.player.guesses[guess_counter-1].lng], "correct": [lat, lng]};
-        })
-    }
+        return {"guess":[out.player.guesses[guess_counter-1].lat, out.player.guesses[guess_counter-1].lng], "correct": [lat, lng]};
+    })
 }
 
 // TO-DO Refactor this mess at some point!
-function SetStreetViewButtons()
+async function SetStreetViewButtons()
 {
     if (document.getElementById(_id_streetview_div_guess)
        || document.getElementById(_id_streetview_div_correct))
@@ -241,6 +172,18 @@ function SetStreetViewButtons()
 
         let guesslatlng = null;
         let guess = document.getElementById(_id_streetview_div_guess);
+        let i = 0
+        while (guess == null && i < 5)
+        {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            guess = document.getElementById(_id_streetview_div_guess);
+            i++;
+        }
+        if (guess == null)
+        {
+            console.error("failed to set guess div for portal")
+            return;
+        }
         if ("guess" in latlng)
         {
             try
@@ -321,13 +264,16 @@ function SetStreetViewButtons()
                 let title = document.createElement("h3")
 
                 title.textContent = "No streetview found for your guess in "+ checkaround +"meter radius!"
-                title.style = guess.style
+                if (guess != null)
+                {
+                    title.style = guess.style
+                    guess.style.display = "none"
+                }
 
                 subdiv.appendChild(title)
 
                 maindiv.appendChild(subdiv)
 
-                guess.style.display = "none"
             }
         }
         else
@@ -336,35 +282,6 @@ function SetStreetViewButtons()
         }
 
         let correct = document.getElementById(_id_streetview_div_correct);
-
-        if(isInChallange())
-        {
-            guessedLocation = new google.maps.LatLng(latlng.correct[0], latlng.correct[1])
-            try
-            {
-                latlng.correct = await webService.getPanoramaByLocation(guessedLocation, checkaround , null);
-                debug(latlng.correct, "latlng.correct")
-
-                latlng.correct = [latlng.correct.data.location.latLng.lat(), latlng.correct.data.location.latLng.lng()];
-                debug(latlng.correct, "latlng.correct")
-            }
-            catch(error)
-            {
-                debug(error,"ERROR")
-                let subdiv = document.createElement("div")
-                let title = document.createElement("h3")
-
-                title.textContent = "No streetview found for selected area(correct guess) in "+ checkaround +"meter radius!"
-                title.style = correct.style
-
-                subdiv.appendChild(title)
-
-                maindiv.appendChild(subdiv)
-
-                correct.style.display = "none"
-                return
-            }
-        }
 
         correct.textContent = "CORRECT LOCATION: Click to embed streetview!"
         correct.onclick = (_) => {
