@@ -76,29 +76,14 @@ function haversine_distance(mk1, mk2) {
     return d;
 }
 
-function getLocationObject() {
-    const game_tag = getGameTag()
-    const api_url = "https://www.geoguessr.com/api/v3/games/" + game_tag
+async function getLocationObject() {
+    const tag = window.location.href.substring(window.location.href.lastIndexOf('/') + 1)
+    const game_endpoint = "https://www.geoguessr.com/api/v3/games/" + tag
+    const challenge_endpoint = "https://www.geoguessr.com/api/v3/challenges/" + tag + "/game"
+    let api_url = isInChallange() ? challenge_endpoint : game_endpoint
 
-    return fetch(api_url)
-        .then(res => res.json())
-}
-
-function getGameTag() {
-    let link = window.location.href
-    if (link.endsWith("/invite")) link = link.slice(0, -7);
-
-    // id of the game (normal game)
-    let game_tag = link.substring(link.lastIndexOf('/') + 1)
-
-    // id of the game (challenge)
-    if (isInChallange()) {
-        const data_challenge = JSON.parse(document.getElementById("__NEXT_DATA__").innerHTML);
-        if (data_challenge.props.pageProps.hasOwnProperty('game')) game_tag = data_challenge.props.pageProps.game.token;
-        else game_tag = data_challenge.props.pageProps.gamePlayedByCurrentUser.token;
-    }
-
-    return game_tag
+    const res = await fetch(api_url);
+    return await res.json();
 }
 
 function startRadio() {
