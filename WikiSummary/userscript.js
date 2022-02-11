@@ -519,7 +519,7 @@ function set5RoundGameSummaryDivPlaceHolder() {
     let newDiv1 = document.createElement("div")
     let parent = get5RoundGameSummaryDiv();
 
-    if (Settings.DisplayFactsBelowButtons) parent.appendChild(newDiv1);
+    if (Settings.DisplayFactsBelowButtons) parent.parentElement.appendChild(newDiv1);
     else parent.insertBefore(newDiv1, parent.lastElementChild);
 
     newDiv1.innerHTML = SummaryLoadingPlaceHolderInnerHtml;
@@ -536,7 +536,7 @@ function setStreakGameSummaryDivPlaceHolder() {
     let newDiv1 = document.createElement("div")
     let parent = getStreakGameSummaryDiv();
 
-    if (Settings.DisplayFactsBelowButtons) parent.appendChild(newDiv1);
+    if (Settings.DisplayFactsBelowButtons) parent.parentElement.appendChild(newDiv1);
     else parent.insertBefore(newDiv1, parent.lastElementChild);
 
     newDiv1.innerHTML = SummaryLoadingPlaceHolderInnerHtml;
