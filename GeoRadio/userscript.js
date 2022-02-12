@@ -76,14 +76,26 @@ function haversine_distance(mk1, mk2) {
     return d;
 }
 
-async function getLocationObject() {
+async function getLocationObjectGame() {
     const tag = window.location.href.substring(window.location.href.lastIndexOf('/') + 1)
     const game_endpoint = "https://www.geoguessr.com/api/v3/games/" + tag
     const challenge_endpoint = "https://www.geoguessr.com/api/v3/challenges/" + tag + "/game"
-    let api_url = isInChallange() ? challenge_endpoint : game_endpoint
+    const api_url = isInChallange() ? challenge_endpoint : game_endpoint
 
     const res = await fetch(api_url);
     return await res.json();
+}
+
+async function getLocationObjectBullseye() {
+    const tag = window.location.href.substring(window.location.href.lastIndexOf('/') + 1)
+    const api_url = "https://game-server.geoguessr.com/api/bullseye/" + tag
+
+    const res = await fetch(api_url, { credentials: "include" })
+    return await res.json();
+}
+
+async function getLocationObject() {
+    return isInBullseye() ? getLocationObjectBullseye() : getLocationObjectGame()
 }
 
 function startRadio() {
@@ -93,7 +105,14 @@ function startRadio() {
             debug("]real_loc: ")
             debug(loc)
 
-            latlng = [loc.rounds[loc.player.guesses.length - 1].lat, loc.rounds[loc.player.guesses.length - 1].lng]
+            if (isInBullseye()) {
+                let guess_counter = loc.players[0].guesses.length
+                latlng = [loc.rounds[guess_counter - 1].panorama.lat, loc.rounds[guess_counter - 1].panorama.lng]
+            } else if (isInClassicGame()) {
+                let guess_counter = loc.player.guesses.length
+                latlng = [loc.rounds[guess_counter - 1].lat, loc.rounds[guess_counter - 1].lng]
+            }
+
             setRadio()
         })
 }
@@ -121,15 +140,17 @@ async function setRadio() {
         d.style.cursor = "pointer"
         d.onclick = () => createRadioWindow("/listen/" + allstations[closestIndex].url)
         d.parentElement.style.background = ""
-
     }
 }
 
 const _id_radio_div_guess = "radio-div-id"
 const _class_roundResult_5roundGame = "result-layout_content__jAHfP"
 const _class_roundResult_streakGame = "streak-round-result_root__WxUU9"
+const _class_roundResult_Bullseye = "round-score_container__avps2"
 
-const RadioPlaceHolderGuess = `<div id="${_id_radio_div_guess}" align="right" style="margin: 50px 0 0 0;text-align:center;z-index:99999;color:cyan;background-color:${Settings.ButtonBackgroundColorName};"> Waiting for radio link... </div>`
+const RadioPlaceHolderGuess = `<div id="${_id_radio_div_guess}" align="right" style="margin: 50px 0 0 0 ; text-align:center ; z-index:99999 ; color:cyan ; background-color:${Settings.ButtonBackgroundColorName} ; "> Waiting for radio link... </div>`
+const RadioLinkBackground = Settings.ButtonBackgroundColorName == "transparent" ? "none" : "#eee"
+const RadioLinkStyle = `position: fixed; z-index: 1; right: 60px; bottom: 30px; background: ${RadioLinkBackground}; overflow-x: hidden; padding: 8px 0;`
 
 // 5 round game round summary div or null
 function get5RoundGameSummaryDiv() {
@@ -146,7 +167,7 @@ function set5RoundGameSummaryDivPlaceHolder() {
     parent.insertBefore(guess, parent.firstElementChild);
 
     guess.innerHTML = RadioPlaceHolderGuess;
-    guess.style = `position: fixed; z-index: 1; right: 60px; background: ${background}; overflow-x: hidden; padding: 8px 0;`
+    guess.style = RadioLinkStyle
 }
 
 // Streak game round summary div or null
@@ -164,36 +185,72 @@ function setStreakGameSummaryDivPlaceHolder() {
 
     parent.insertBefore(guess, parent.firstElementChild);
 
-    guess.innerHTML = StreetViewPlaceHolderGuess;
-    guess.style = `position: fixed; z-index: 1; right: 60px; background: ${background}; overflow-x: hidden; padding: 8px 0;`
+    guess.innerHTML = RadioPlaceHolderGuess;
+    guess.style = RadioLinkStyle
+}
+
+// Bullseye round summary div or null
+function getBullseyeGameSummaryDiv() {
+    let div = document.getElementsByClassName(_class_roundResult_Bullseye);
+    if (div.length == 0) return null
+    else return div[0]
+}
+
+function setBullseyeGameSummaryDivPlaceHolder() {
+    let guess = document.createElement("div")
+    let parent = getBullseyeGameSummaryDiv();
+    const background = Settings.ButtonBackgroundColorName == "transparent" ? "none" : "#eee"
+
+    parent.insertBefore(guess, parent.firstElementChild);
+
+    guess.innerHTML = RadioPlaceHolderGuess;
+    guess.style = RadioLinkStyle
 }
 
 function radioStateAttempt(newDiv1) {
-    if (document.getElementById(_id_radio_div_guess) || !isInValidGameLocation()) return
+    if (document.getElementById(_id_radio_div_guess) || !isValidGame() || !isInRoundResultPage()) return
 
     if (get5RoundGameSummaryDiv()) set5RoundGameSummaryDivPlaceHolder()
     else if (getStreakGameSummaryDiv()) setStreakGameSummaryDivPlaceHolder()
-
+    else if (getBullseyeGameSummaryDiv()) setBullseyeGameSummaryDivPlaceHolder()
 };
 
 function isInChallange() {
     return location.pathname.startsWith("/challenge/");
 }
 
-function isInValidGameLocation() {
+function isInBullseye() {
+    return location.pathname.startsWith("/bullseye/");
+}
+
+function isInClassicGame() {
     return location.pathname.startsWith("/game/") || isInChallange();
 }
 
-function isRealScoreAlreadyChecked() {
+function isValidGame() {
+    return isInClassicGame() || isInBullseye();
+}
+
+function isInRoundResultPage() {
+    if (isInClassicGame()) return !!document.querySelector('.result-layout_root__NfX12')
+    else if (isInBullseye()) return !!document.querySelector('.round-score_container__avps2')
+    return false
+}
+
+function isRadioAlreadyChecked() {
     return sessionStorage.getItem(_storage_checked) != 0
 }
 
+function isRadioAlreadySet() {
+    return document.getElementById(_id_radio_div_guess) && document.getElementById(_id_radio_div_guess).innerHTML != RadioPlaceHolderGuess
+}
+
 function radioCheckState() {
-    if (!!document.querySelector('.result-layout_root__NfX12') && isInValidGameLocation() && !isRealScoreAlreadyChecked()) {
+    if (isValidGame() && isInRoundResultPage() && !isRadioAlreadyChecked()) {
         startRadio();
-        checked = checked + 1;
+        if (isRadioAlreadySet()) checked = checked + 1;
         sessionStorage.setItem(_storage_checked, checked);
-    } else if (!document.querySelector('.result-layout_root__NfX12') && isInValidGameLocation() && isRealScoreAlreadyChecked()) {
+    } else if (isValidGame() && !isInRoundResultPage() && isRadioAlreadyChecked()) {
         checked = 0;
         sessionStorage.setItem(_storage_checked, checked)
     };
@@ -213,7 +270,10 @@ function tryRadioCheck() {
     setTimeout(radioStateAttempt, 2000);
 };
 
-document.addEventListener('click', tryRadioCheck, false);
+document.body.addEventListener('transitionend', () => {
+    if (isValidGame() && isInRoundResultPage() != isRadioAlreadyChecked())
+        tryRadioCheck()
+});
 
 const allstations = [
     { "geo": [28.658667, 50.25465], "url": "zhytomyr/JhB9pklE", "country": "Ukraine" },

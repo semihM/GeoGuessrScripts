@@ -70,7 +70,7 @@ let Settings = {
     "FamousPlaceFactTitleColorName": "cyan",
 
     // Source link color name, lowercase
-    "SourceLinkColorName": "silver",
+    "SourceLinkColorName": "darkgray",
 
     // true: Display fact number after the title; false: Don't display fact number
     "DisplayFactNumber": true,
@@ -112,6 +112,8 @@ const SETTINGS_ASKED_COOKIE = "geoguessr_script_semihM_WikiSummarySettingsAsked"
 const _id_fact_div = "location-fact"
 const _class_roundResult_5roundGame = "round-result_actions__5j26U"
 const _class_roundResult_streakGame = "streak-round-result_root__WxUU9"
+const _class_roundResult_Bullseye = "round-score_container__avps2"
+const _class_nextButton_Bullseye = "button_button__CnARx"
 const _class_correct_loc = 'styles_circle__2tw8L styles_variantFloating__mawbd styles_colorWhite__2QcUQ styles_borderSizeFactorOne__2Di08'
 
 const SummaryLoadingPlaceHolderInnerHtml = `<div id="${_id_fact_div}" style="text-align:center"><br><br>Loading wikipedia summaries...</div><br>`
@@ -368,11 +370,11 @@ function getCorrectLocationDivForChallenge() {
     return document.querySelector('[alt="Correct location"]').parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement
 }
 
-async function getLocationObject() {
+async function getLocationObjectGame() {
     const tag = window.location.href.substring(window.location.href.lastIndexOf('/') + 1)
     const game_endpoint = "https://www.geoguessr.com/api/v3/games/" + tag
     const challenge_endpoint = "https://www.geoguessr.com/api/v3/challenges/" + tag + "/game"
-    let api_url = isInChallange() ? challenge_endpoint : game_endpoint
+    const api_url = isInChallange() ? challenge_endpoint : game_endpoint
 
     return fetch(api_url)
         .then(res => res.json())
@@ -384,6 +386,26 @@ async function getLocationObject() {
 
             return getLocationFromLatLng(lat, lng);
         })
+}
+
+async function getLocationObjectBullseye() {
+    const tag = window.location.href.substring(window.location.href.lastIndexOf('/') + 1)
+    const api_url = "https://game-server.geoguessr.com/api/bullseye/" + tag
+
+    return fetch(api_url, { credentials: "include" })
+        .then(res => res.json())
+        .then(out => {
+            let guess_counter = out.players[0].guesses.length
+
+            let lat = out.rounds[guess_counter - 1].panorama.lat;
+            let lng = out.rounds[guess_counter - 1].panorama.lng;
+
+            return getLocationFromLatLng(lat, lng);
+        })
+}
+
+async function getLocationObject() {
+    return isInBullseye() ? getLocationObjectBullseye() : getLocationObjectGame()
 }
 
 function getNearByLocationsFromLatLng(lat, lng) {
@@ -503,9 +525,11 @@ function setFactInnerHtml() {
         .map((fact, i) => {
             return `<br><h2 style="color: ${getFactTitleColor(fact)}">${getFactTitle(fact)} Fact ${Settings.DisplayFactNumber ? (i+1) : ""}</h2><span style="${style_source_text}">(</span><u><a href="${fact.link}"${new_tab}; style="${style_source_text}"><i>source</i></a></u><span style="${style_source_text}">)</span><br><div style="text-align: justify;text-justify: inter-word;">${getFactTextHtml(fact)}</div>`
         })
-        .join("<hr>")
+        .join("<hr style='background: var(--ds-color-white-20, hsla(0,0%,100%,0.2)) ; height: .0625em ; border: 0 ; margin: 1rem 0 0.5rem 0'>")
 
-    document.getElementById(_id_fact_div).innerHTML = str;
+    try {
+        document.getElementById(_id_fact_div).innerHTML = str;
+    } catch (error) { console.log(error); }
 }
 
 // 5 round game round summary div or null
@@ -542,20 +566,64 @@ function setStreakGameSummaryDivPlaceHolder() {
     newDiv1.innerHTML = SummaryLoadingPlaceHolderInnerHtml;
 }
 
+// Bullseye round summary div or null
+function getBullseyeGameSummaryDiv() {
+    let div = document.getElementsByClassName(_class_roundResult_Bullseye);
+    if (div.length == 0) return null
+    else return div[0]
+}
+
+function setBullseyeGameSummaryDivPlaceHolder() {
+    let newDiv1 = document.createElement("div")
+    let parent = getBullseyeGameSummaryDiv();
+
+    if (Settings.DisplayFactsBelowButtons) parent.appendChild(newDiv1);
+    else parent.insertBefore(newDiv1, parent.lastElementChild);
+
+    newDiv1.innerHTML = SummaryLoadingPlaceHolderInnerHtml;
+}
+
+function getBullseyeButtonDiv() {
+    let div = document.getElementsByClassName(_class_nextButton_Bullseye);
+    if (div.length == 0) return null
+    else return div[0]
+}
+
+function setBullseyeButtonStyle() {
+    let button = getBullseyeButtonDiv();
+    button.style.padding = "var(--vertical-padding, 0.75rem) var(--horizontal-padding, 1.5rem)"
+}
+
 function factCheckStateAttempt(newDiv1) {
-    if (document.getElementById(_id_fact_div) || !isInValidGameLocation()) return
+    if (document.getElementById(_id_fact_div) || !isValidGame() || !isInRoundResultPage()) return
 
     if (get5RoundGameSummaryDiv()) set5RoundGameSummaryDivPlaceHolder()
     else if (getStreakGameSummaryDiv()) setStreakGameSummaryDivPlaceHolder()
+    else if (getBullseyeGameSummaryDiv()) setBullseyeGameSummaryDivPlaceHolder()
 
+    if (getBullseyeButtonDiv()) setBullseyeButtonStyle()
 };
 
 function isInChallange() {
     return location.pathname.startsWith("/challenge/");
 }
 
-function isInValidGameLocation() {
+function isInBullseye() {
+    return location.pathname.startsWith("/bullseye/");
+}
+
+function isInClassicGame() {
     return location.pathname.startsWith("/game/") || isInChallange();
+}
+
+function isValidGame() {
+    return isInClassicGame() || isInBullseye();
+}
+
+function isInRoundResultPage() {
+    if (isInClassicGame()) return !!document.querySelector('.result-layout_root__NfX12')
+    else if (isInBullseye()) return !!document.querySelector('.round-score_container__avps2')
+    return false
 }
 
 function isFactAlreadyChecked() {
@@ -563,11 +631,11 @@ function isFactAlreadyChecked() {
 }
 
 function factCheckState() {
-    if (!!document.querySelector('.result-layout_root__NfX12') && isInValidGameLocation() && !isFactAlreadyChecked()) {
+    if (isValidGame() && isInRoundResultPage() && !isFactAlreadyChecked()) {
         SetDisplayFact();
         checked = checked + 1;
         sessionStorage.setItem("FactLocationChecked", checked);
-    } else if (!document.querySelector('.result-layout_root__NfX12') && isInValidGameLocation() && isFactAlreadyChecked()) {
+    } else if (isValidGame() && !isInRoundResultPage() && isFactAlreadyChecked()) {
         checked = 0;
         sessionStorage.setItem("FactLocationChecked", checked)
     };
@@ -587,4 +655,7 @@ function tryFactCheck() {
     setTimeout(factCheckStateAttempt, 2000);
 };
 
-document.addEventListener('click', tryFactCheck, false);
+document.body.addEventListener('transitionend', () => {
+    if (isValidGame() && isInRoundResultPage() != isFactAlreadyChecked())
+        tryFactCheck()
+});
