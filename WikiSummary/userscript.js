@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wiki Summary
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.5.0
+// @version      0.6.0
 // @description  Display Wikipedia summary of the Geoguessr locations. Works with streaks, single player 5 round games and challenges.
 // @author       semihM (aka rhinoooo_), MiniKochi
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/WikiSummary
@@ -100,7 +100,7 @@ const OPENTRIP_URL = `https://api.opentripmap.com/0.1/en/places/radius?radius=${
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const SettingsVersion = 5; // DO NOT CHANGE MANUALLY
+const SettingsVersion = 6; // ONLY UPDATE WHILE RELEASING A NEW VERSION
 
 const EMPTYAPIKEY = "ENTER_API_KEY_HERE"
 const INVALIDLINK = "#";
