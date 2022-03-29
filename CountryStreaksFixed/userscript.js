@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Country Streak Counter (Automated)
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.0.2
+// @version      0.0.3
 // @description  Adds a country streak counter to the GeoGuessr website
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/CountryStreaksFixed
 // @supportURL   https://github.com/semihM/GeoGuessrScripts/issues
@@ -296,7 +296,7 @@ function updateStreak(newVariable) {
     if(document.getElementById("country-streak") != null) {
         document.getElementById("country-streak").innerHTML = `<div id="country-streak"><div class="status_value__xZMNY">${streak}</div></div>`;
     };
-    if(document.getElementById("country-streak2") != null && document.getElementsByClassName("round-result_distanceDescription__GbUyg").length == 1) {
+    if(document.getElementById("country-streak2") != null && document.querySelector("[data-qa='guess-description']")) {
         document.getElementById("country-streak2").innerHTML = `<br><h2><i>Country Streak: ${streak}</i></h2>`;
     };
     if(document.getElementById("country-streak2") != null && !!document.querySelector('.standard-final-result_section___B3ne')) {
@@ -374,7 +374,9 @@ async function getUserAsync(location) {
 
 function check(){
     const game_tag = window.location.href.substring(window.location.href.lastIndexOf('/') + 1)
-    const api_url = "https://www.geoguessr.com/api/v3/games/"+game_tag
+    let api_url = isChallenge()
+        ? "https://www.geoguessr.com/api/v3/challenges/"+game_tag+"/game"
+        : "https://www.geoguessr.com/api/v3/games/"+game_tag;
     let rounds_tab = document.getElementsByClassName("status_value__xZMNY")
     let current_round = rounds_tab[1].innerHTML.substr(0, rounds_tab[1].innerHTML.indexOf('/')).trim();
     fetch(api_url)
@@ -422,16 +424,31 @@ function check(){
 
 };
 
+function isSingle()
+{
+    return location.pathname.startsWith("/game/")
+}
+
+function isChallenge()
+{
+    return location.pathname.startsWith("/challenge/")
+}
+
+function isInGame()
+{
+    return isSingle() || isChallenge()
+}
+
 function addStreak1(newDiv1) {
-    if(document.getElementById("country-streak2") == null && document.getElementsByClassName("round-result_distanceDescription__GbUyg").length == 1 && location.pathname.startsWith("/game/")) {
+    if(document.getElementById("country-streak2") == null && document.querySelector("[data-qa='guess-description']") && isInGame()) {
         newDiv1 = document.createElement("div")
-        document.getElementsByClassName("round-result_distanceDescription__GbUyg")[0].appendChild(newDiv1);
+        document.querySelector("[data-qa='guess-description']").appendChild(newDiv1);
         newDiv1.innerHTML = `<div id="country-streak2" style="text-align:center"><br><h2><i>Country Streak: ${streak}</i></h2></div>`;
     };
 };
 
 function addStreak2(newDiv2) {
-    if(document.getElementById("country-streak2") == null && !!document.querySelector('.standard-final-result_section___B3ne') && location.pathname.startsWith("/game/")) {
+    if(document.getElementById("country-streak2") == null && !!document.querySelector('.standard-final-result_section___B3ne') && isInGame()) {
         newDiv2 = document.createElement("div")
         document.getElementsByClassName("progress-bar_background__A6ZDS progress-bar_expandHeight__W_59W")[0].appendChild(newDiv2);
         newDiv2.innerHTML = `<div id="country-streak2" style="text-align:center"><br><h2><i>Country Streak: ${streak}</i></h2></div>`;
@@ -439,55 +456,55 @@ function addStreak2(newDiv2) {
 };
 
 function addStreak() {
-    if (!!document.querySelector('.result-layout_root__NfX12') && location.pathname.startsWith("/game/") && sessionStorage.getItem("Checked") == 0){
+    if (!!document.querySelector('.result-layout_root__NfX12') && isInGame() && sessionStorage.getItem("Checked") == 0){
         check();
         checked = checked + 1;
         sessionStorage.setItem("Checked", checked);
     }
-    else if (!document.querySelector('.result-layout_root__NfX12') && location.pathname.startsWith("/game/") && sessionStorage.getItem("Checked") != 0) {
+    else if (!document.querySelector('.result-layout_root__NfX12') && isInGame() && sessionStorage.getItem("Checked") != 0) {
         checked = 0;
         sessionStorage.setItem("Checked", checked)
     };
     setTimeout(function() {
-        if (!!document.querySelector('.result-layout_root__NfX12') && location.pathname.startsWith("/game/") && sessionStorage.getItem("Checked") == 0){
+        if (!!document.querySelector('.result-layout_root__NfX12') && isInGame() && sessionStorage.getItem("Checked") == 0){
             check();
             checked = checked + 1;
             sessionStorage.setItem("Checked", checked);
         }
-        else if (!document.querySelector('.result-layout_root__NfX12') && location.pathname.startsWith("/game/") && sessionStorage.getItem("Checked") != 0) {
+        else if (!document.querySelector('.result-layout_root__NfX12') && isInGame() && sessionStorage.getItem("Checked") != 0) {
             checked = 0;
             sessionStorage.setItem("Checked", checked)
         };
     }, 250);
     setTimeout(function() {
-        if (!!document.querySelector('.result-layout_root__NfX12') && location.pathname.startsWith("/game/") && sessionStorage.getItem("Checked") == 0){
+        if (!!document.querySelector('.result-layout_root__NfX12') && isInGame() && sessionStorage.getItem("Checked") == 0){
             check();
             checked = checked + 1;
             sessionStorage.setItem("Checked", checked);
         }
-        else if (!document.querySelector('.result-layout_root__NfX12') && location.pathname.startsWith("/game/") && sessionStorage.getItem("Checked") != 0) {
+        else if (!document.querySelector('.result-layout_root__NfX12') && isInGame() && sessionStorage.getItem("Checked") != 0) {
             checked = 0;
             sessionStorage.setItem("Checked", checked)
         };
     }, 500);
     setTimeout(function() {
-        if (!!document.querySelector('.result-layout_root__NfX12') && location.pathname.startsWith("/game/") && sessionStorage.getItem("Checked") == 0){
+        if (!!document.querySelector('.result-layout_root__NfX12') && isInGame() && sessionStorage.getItem("Checked") == 0){
             check();
             checked = checked + 1;
             sessionStorage.setItem("Checked", checked);
         }
-        else if (!document.querySelector('.result-layout_root__NfX12') && location.pathname.startsWith("/game/") && sessionStorage.getItem("Checked") != 0) {
+        else if (!document.querySelector('.result-layout_root__NfX12') && isInGame() && sessionStorage.getItem("Checked") != 0) {
             checked = 0;
             sessionStorage.setItem("Checked", checked)
         };
     }, 1200);
     setTimeout(function() {
-        if (!!document.querySelector('.result-layout_root__NfX12') && location.pathname.startsWith("/game/") && sessionStorage.getItem("Checked") == 0){
+        if (!!document.querySelector('.result-layout_root__NfX12') && isInGame() && sessionStorage.getItem("Checked") == 0){
             check();
             checked = checked + 1;
             sessionStorage.setItem("Checked", checked);
         }
-        else if (!document.querySelector('.result-layout_root__NfX12') && location.pathname.startsWith("/game/") && sessionStorage.getItem("Checked") != 0) {
+        else if (!document.querySelector('.result-layout_root__NfX12') && isInGame() && sessionStorage.getItem("Checked") != 0) {
             checked = 0;
             sessionStorage.setItem("Checked", checked)
         };
