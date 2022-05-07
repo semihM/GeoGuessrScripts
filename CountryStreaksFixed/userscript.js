@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Country Streak Counter (Automated)
 // @include      /^(https?)?(\:)?(\/\/)?([^\/]*\.)?geoguessr\.com($|\/.*)/
-// @version      0.0.3
+// @version      0.0.4
 // @description  Adds a country streak counter to the GeoGuessr website
 // @source       https://github.com/semihM/GeoGuessrScripts/blob/main/CountryStreaksFixed
 // @supportURL   https://github.com/semihM/GeoGuessrScripts/issues
-// @updateURL    https://github.com/semihM/GeoGuessrScripts/blob/main/CountryStreaksFixed/userscript.js
+// @updateURL    https://raw.githubusercontent.com/semihM/GeoGuessrScripts/main/CountryStreaksFixed/userscript.js
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @grant        GM_addStyle
